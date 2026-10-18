@@ -47,7 +47,7 @@
 
 | 产物 | 来源 | 获取方式 | 校验 |
 |---|---|---|---|
-| `libnode.so`（126,809,264 B） | `electerm/ohos-node-shared` `ohos-node-shared-v24.2.0` | `ohos-node-bridge/tools/provision.mjs` | 七项 ELF 门禁 + SHA-256（`runtime.lock.json`） |
+| `libnode.so`（126,809,264 B） | `electerm/ohos-node-shared` `ohos-node-shared-v24.2.0`；本地缓存 `ohos-node-bridge/runtime/node-v24.2.0/` | `ohos-node-bridge/tools/provision.mjs` | 七项 ELF 门禁 + SHA-256（`runtime.lock.json`） |
 | `libc++_shared.so` | OHOS SDK `native/llvm/lib/aarch64-linux-ohos/` | 同上 | SHA-256 |
 | `@fellow99/node-bridge.har` | 本工作区 `ohos-node-bridge` 构建 | `scripts/build-bridge-har.sh` | 构建产物，gitignored |
 | `dsh.tar.gz`（载荷） | 本仓库装配 | `scripts/assemble-payload.mjs` | `dsh.version` 首行 sha256 |

@@ -48,7 +48,8 @@
 | 上游零补丁 | `node scripts/verify-upstream.mjs` | ✅ 通过（tag / clean / patch ids / profile / bundle） | 构建日志 |
 | 载荷同步 | `node scripts/sync-payload.mjs` | ✅ 9 files / 26,074 bytes | `resfile/dsh-payload/dsh.version` |
 | Node 侧自检 | `NODE_BRIDGE_PAYLOAD_ROOT=build/selfcheck node payload/selfcheck.js` | ✅ 7/7（S1–S5、目录、ready） | 终端输出 |
-| HAP 构建 | `hvigorw assembleHap --mode module -p product=default -p buildMode=debug` | ✅ BUILD SUCCESSFUL | `entry/build/default/outputs/default/entry-default-unsigned.hap`（818 KB） |
+| HAP 构建 | `hvigorw assembleHap --mode module -p product=default -p buildMode=debug` | ✅ BUILD SUCCESSFUL | `entry-default-unsigned.hap`（**44 MB**，含 libnode.so） |
+| 运行时投放 | `provision.mjs --check` / `--out entry/libs/arm64-v8a --sdk <sdk>` | ✅ 七项门禁全过；SHA-256 命中 | `entry/libs/arm64-v8a/{libnode.so,libc++_shared.so}` |
 | 代码评审 | `requesting-code-review` + `receiving-code-review` | 1 Critical + 7 Important 已修 | `logs/20261018-1/REVIEW_REPORT.md` |
 | 未签名构建 | 无 `signing.*.local.json` / 环境变量 | ✅ 产出未签名包（预期） | 构建日志 |
 
@@ -60,12 +61,15 @@
 
 | 缺口 | 归属 | 建议需求编号 |
 |---|---|---|
-| `libnode.so` 未投放（HAP 不含运行时） | `102` | 在构建机执行 `provision.mjs --download` |
 | `@dsh-ohos/*` 8 个 seam 插件未实现 | `105`/`106` | `001-adapters` |
 | `/_ohos/facts` 端点 | `107` | `002-diagnostics` |
 | 双发行线（standard / jitless） | `108` | `003-release` |
 | 真实 dsh 载荷装配（pnpm deploy + 裁剪） | `102` | `004-payload` |
-| `ohos-node-runtime` 工程不存在 | 跨工程 | 需用户确认该工程归属 |
+
+**已闭合（2026-10-18）**
+
+- 运行时投放：`libnode.so`（126,809,264 B）+ `libc++_shared.so` 已投放至 `entry/libs/arm64-v8a/`，七项 ELF 门禁全过；HAP 由 818 KB 变为 44 MB（含运行时）。
+- `ohos-node-runtime` 归属：已迁入 `ohos-node-bridge/runtime/`（本地缓存 + `SHA256SUMS` + 各版本 `PROVENANCE.md`；唯一事实源仍是 `ohos-node-bridge/runtime.lock.json`）。
 
 ---
 

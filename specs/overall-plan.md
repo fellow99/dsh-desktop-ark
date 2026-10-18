@@ -117,7 +117,7 @@
 
 | 风险 | 缓解 |
 |---|---|
-| `libnode.so` 未投放导致启动即失败 | 构建脚本提前校验；`provision.mjs --check` 七项门禁 |
+| `libnode.so` 缺失导致启动即失败 | 本地缓存 `ohos-node-bridge/runtime/` 已就位；`provision.mjs --check` 七项门禁 + SHA-256 校验 |
 | 端口冲突导致进程 abort | 随机端口 + 单实例 + 异常兜底 |
 | 载荷缺失（本轮） | `bootstrap.js` 写 `payload-missing` → 错误页可复制诊断 |
 | 上游 id/契约变更 | `scripts/verify-upstream.mjs` 断言；tag 固定 |

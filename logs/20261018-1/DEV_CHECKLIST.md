@@ -27,7 +27,7 @@
 | 6 | 构建脚本（HAR / 运行时 / 同步 / 打包 / 装配 / 契约 / HAP） | ✅ | 脚本齐全 |
 | 7 | 规范文档（10 根 + 8 模块 ×2） | ✅ | 26 文件 |
 | 8 | 代码评审与修复 | ✅ | `REVIEW_REPORT.md` |
-| 9 | 真机安装与 L1–L4 | ⬜ | 缺 `libnode.so` 与设备 |
+| 9 | 真机安装与 L1–L4 | ⬜ | 缺设备（运行时已投放） |
 
 ## 3. 本轮命令记录（可复现）
 
@@ -44,12 +44,12 @@ NODE_BRIDGE_PAYLOAD_ROOT=$PWD/build/selfcheck node payload/selfcheck.js   # ok: 
 
 # 构建
 DEVECO_SDK_HOME=<sdk> hvigorw --mode module -p product=default -p buildMode=debug assembleHap --no-daemon
-# BUILD SUCCESSFUL → entry-default-unsigned.hap (818 KB)
+# BUILD SUCCESSFUL → entry-default-unsigned.hap (44 MB，含 libnode.so)
 ```
 
 ## 4. 已知未完成
 
-- `libnode.so` 未投放（HAP 不含运行时，无法启动 Node）。
+- `libnode.so` 已投放（126.8 MB，HAP 44 MB）；L1 仍缺设备。
 - 真实 dsh 载荷未装配（`payload-missing` 为预期状态）。
 - `@dsh-ohos/*` seam 插件、`workspace-picker`、`/_ohos/facts`、双发行线均为 `planned`。
-- `ohos-node-runtime` 工程不存在（需求列出，需确认归属）。
+- `ohos-node-runtime` 已迁入 `ohos-node-bridge/runtime/`（`runtime/README.md` 为其说明入口）。
