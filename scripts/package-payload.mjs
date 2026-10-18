@@ -22,6 +22,17 @@ if (!existsSync(STAGE)) {
   process.exit(0);
 }
 
+function fail(message) {
+  console.error(`[package-payload] ${message}`);
+  process.exit(1);
+}
+
+/** 固定 builtAt 用（默认取载荷树最新 mtime，保证重跑同输入同首行）。 */
+const builtAtArg = (() => {
+  const index = process.argv.indexOf('--built-at');
+  return index >= 0 ? process.argv[index + 1] : undefined;
+})();
+
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
     const full = join(dir, entry.name);
@@ -82,21 +93,42 @@ function header(name, prefix, size, mode, type) {
 const files = walk(STAGE).map((full) => ({
   full,
   name: `dsh/${relative(STAGE, full).split('\\').join('/')}`,
-  size: statSync(full).size
+  size: statSync(full).size,
+  mtimeMs: statSync(full).mtimeMs,
 }));
 
+
+// 快速跳过（FR-102-016 的可重跑语义）：归档已存在、首行 sha 与归档哈希一致、且归档比载荷树新
+// ⇒ 不重打。`--force` 可强制重打。
+const newestMtime = files.reduce((max, file) => Math.max(max, file.mtimeMs), 0);
+const versionFile = join(OUT_DIR, 'dsh.version');
+if (!process.argv.includes('--force') && existsSync(ARCHIVE) && existsSync(versionFile)) {
+  const declared = (readFileSync(versionFile, 'utf8').split('\n')[0].trim().split(/\s+/)[0] || '');
+  const archiveStat = statSync(ARCHIVE);
+  if (archiveStat.mtimeMs >= newestMtime && /^[0-9a-f]{64}$/.test(declared)) {
+    const actual = createHash('sha256').update(readFileSync(ARCHIVE)).digest('hex');
+    if (actual === declared) {
+      console.log(`[package-payload] 归档已是最新（${files.length} files, sha12=${actual.slice(0, 12)}）→ 跳过；--force 可重打`);
+      process.exit(0);
+    }
+  }
+}
 const chunks = [];
 let bytes = 0;
-for (const file of files) {
-  const split = splitName(file.name);
-  chunks.push(header(split.name, split.prefix, file.size, 0o644, '0'));
-  const body = readFileSync(file.full);
-  chunks.push(body);
-  const padded = Math.ceil(file.size / 512) * 512;
-  if (padded > file.size) {
-    chunks.push(Buffer.alloc(padded - file.size, 0));
+try {
+  for (const file of files) {
+    const split = splitName(file.name);
+    chunks.push(header(split.name, split.prefix, file.size, 0o644, '0'));
+    const body = readFileSync(file.full);
+    chunks.push(body);
+    const padded = Math.ceil(file.size / 512) * 512;
+    if (padded > file.size) {
+      chunks.push(Buffer.alloc(padded - file.size, 0));
+    }
+    bytes += body.byteLength;
   }
-  bytes += body.byteLength;
+} catch (error) {
+  fail(`无法编码归档：${error.message}`);
 }
 chunks.push(Buffer.alloc(1024, 0));
 
@@ -106,6 +138,10 @@ mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(ARCHIVE, gz);
 
 const sha256 = createHash('sha256').update(gz).digest('hex');
-writeFileSync(join(OUT_DIR, 'dsh.version'), `${sha256} ${files.length} ${bytes} ${new Date().toISOString()}\n`);
+// 可复现（FR-102-016）：默认用载荷树的最新 mtime 作为 builtAt，重跑同输入即同首行；
+// 需要固定值时用 --built-at <ISO> 覆盖。
+// builtAt 用载荷树的最新 mtime（可复现），已在上面算出
+const builtAt = builtAtArg ?? new Date(newestMtime || Date.now()).toISOString();
+writeFileSync(join(OUT_DIR, 'dsh.version'), `${sha256} ${files.length} ${bytes} ${builtAt}\n`);
 console.log(`[package-payload] ${files.length} files, ${bytes} bytes -> ${relative(ROOT, ARCHIVE)} (${gz.byteLength} bytes gz)`);
 console.log(`[package-payload] sha256=${sha256} sha12=${sha256.slice(0, 12)}`);

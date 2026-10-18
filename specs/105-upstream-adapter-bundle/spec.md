@@ -1,7 +1,7 @@
 # 规格：上游适配层（105-upstream-adapter-bundle）
 
 > 工程：`dsh-desktop-ark`
-> 状态：`implemented`（profile 与 bundle 的 YAML 装配层 + 上游契约断言脚本）+ `planned`（seam 插件包）
+> 状态：`implemented`（profile 与 bundle 的 YAML 装配层 + 上游契约断言脚本）+ `implemented/partial`（8 个 seam 插件包 + 共享宿主桥，见 `packages/*-ohos/`）
 > 来源：`docs/000-工程规划.md` §5.1–§5.5、§3.1、§14（D2/D5/D7/D13）；`specs/overall-spec.md` §5；`specs/overall-data-model.md` §7
 > 需求语言遵循 RFC 2119（MUST / SHOULD / MAY）。本文件不含实现细节（不出现文件名、路径、API 名）。
 
@@ -28,7 +28,7 @@
 | 用户级 patch（空配置，设备可改、升级不覆盖） | implemented |
 | 依赖安装参数（hoisted + copy + 跳过脚本） | implemented |
 | 上游契约断言（tag、零补丁、行 id 存在性、清单可解析） | implemented |
-| seam 插件包（子进程、沙箱策略、shell、目录选择、外部打开、通知、诊断、图像、sqlite） | **planned** |
+| seam 插件包（子进程、沙箱策略、shell、目录选择、外部打开、通知、诊断、图像） | **implemented（partial）** —— 10 个包在 `packages/*-ohos/`；sqlite 重定向仍 `not-implemented` |
 
 ---
 ## 2. 用户故事
@@ -83,7 +83,7 @@
 | UserPatch | 用户级 patch：设备偏好，升级不覆盖 | implemented |
 | InstallPolicy | 依赖安装参数集合（扁平、复制、跳过脚本） | implemented |
 | ContractAssertion | 单条上游契约断言：目标、期望、结论 | implemented |
-| SeamPackage | seam 插件包：替换的服务面 + 实现状态 | planned |
+| SeamPackage | seam 插件包：替换的服务面 + 实现状态 | implemented（`partial`：PTY / 前台上报 / 宿主占位能力见各包 README） |
 
 ---
 ## 5. 验收场景

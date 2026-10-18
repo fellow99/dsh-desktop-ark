@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="MIT">
 </p>
 
-**状态** `0.1.0` —— **scaffold**（`versionCode` 100）。已能编译打包：`hvigorw assembleHap` 产出的未签名 HAP，在投放运行时之后为 **44 MB**，内含完整 Node 运行时与载荷。随包自检（`payload/selfcheck.js`）**7/7** 通过。**尚未做任何鸿蒙真机验证** —— 哪些已验证、哪些没有，请逐条看[状态](#状态)。
+**状态** `0.1.0` —— **scaffold**（`versionCode` 100）。现在不仅能编译打包，还能**真正启动一份载荷**：`assemble-payload.mjs --deploy` 物化上游 dsh 运行树（628.6 MiB → 151 MiB，打成 **40.4 MB** 的 `dsh.tar.gz`），产出 **86 MB** 未签名 HAP，内含 Node 运行时与载荷。在宿主 Node 上，同一棵树解包约 13 s、物化 profile、启动 Host，并在 token URL 上返回零改动 dsh Web UI（**HTTP 200**），未激活的 profile 行 **0 条**。**尚未做任何鸿蒙真机验证** —— 哪些已验证、哪些没有，请逐条看[状态](#状态)。
 
 ## 两个 HarmonyOS edition
 
@@ -59,10 +59,10 @@ EntryAbility (ArkTS)
 |---|---|
 | ArkTS 外壳、ArkWeb 宿主页、启动编排、就绪门禁、诊断 | ✅ 已实现 |
 | 消费 `ohos-node-bridge` HAR、运行时投放（7 项 ELF 门禁 + SHA-256）、44 MB HAP | ✅ 已由构建验证 |
-| 载荷管线（`resfile` → 自解包）、5 条垫片、自检 7/7、上游锁定校验 | ✅ 已在宿主工具链上验证 |
-| 8 个 `@dsh-ohos/*` seam 插件、工作区选择器、`/_ohos/facts`、无 JIT 发行线 | 📋 `planned`（见 [`specs/`](./specs/)） |
-| 真实 dsh 载荷装配（`assemble-payload.mjs` 在给出 `--from`/`--apply` 前为 dry-run） | 📋 `not-implemented` —— HAP 走 `payload-missing` 降级 |
-| 真机验证（L1–L4、ArkWeb → `127.0.0.1`、`sh` 哨兵、JIT ACL） | ⛔ 未做 —— 无设备 |
+| 载荷管线（`resfile` → 自解包）、5 条垫片、自检 7/7、上游锁定校验 | ✅ 已在宿主工具链上验证；profile 改从 `<runRoot>/profiles/ohos` 载入（移出 `$DSH_HOME` 才能解析 `@dsh-ohos/*`） |
+| 8 个 `@dsh-ohos/*` seam 插件 + 共享宿主桥（`packages/*-ohos/` 下 10 个包） | ✅ 已实现（**partial**：无 PTY；`notify.show` / `image.normalize` 仍为 ArkTS 占位；无可隔离执行器 ⇒ 审批预设禁用） |
+| 真实 dsh 载荷装配与打包 | ✅ `--deploy`（pnpm deploy → 链接物化 → 补全 `@deepseek-ai` → 摊平非 hoisted → 剪裁 → 覆盖层 → 断言）；41 331 文件 / 628.6 MiB → **15 192 文件 / 151 MiB** → `dsh.tar.gz` **40.4 MB**（`sha12 db181e3b4364`）；HAP **86 MB** |
+| 真机验证（L1–L4、ArkWeb → `127.0.0.1`、`sh` 哨兵、JIT ACL） | ⛔ 未做 —— 无设备（宿主 Node 上的端到端已通过：解包 → profile → `runProfile` → token URL `200`） |
 
 ## 仓库结构
 

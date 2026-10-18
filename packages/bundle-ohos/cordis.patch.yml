@@ -20,6 +20,9 @@
 - id: bash-sandbox
   disabled: true
 
+- id: pwsh-sandbox
+  disabled: true
+
 # 策略层保留（纯配置，无内核依赖）；workspaceRoot 必须显式覆盖：
 # 上游默认是 process.cwd()，而设备上 cwd 是 "/"。
 - id: sandbox-policy
@@ -36,6 +39,12 @@
 - id: open-in-app
   disabled: true
 
+# ── 审批预设：需要"可隔离的执行器"（ctx.shell.sandboxMode 非空）───────────────
+# 鸿蒙没有内核隔离，我们的 shell 执行器如实不声明 sandboxMode；上游 permission-presets
+# 把这种组合判为误配置并拒绝挂载 ⇒ 明确禁用，而不是伪造一个 sandboxMode（宪法 C2）。
+- id: permission
+  disabled: true
+
 - insert:
     # 进程与命令
     - id: subprocess-ohos
@@ -49,8 +58,8 @@
         shellPath: /system/bin/sh
 
     # 四主目录工作区选择（host 面 + client 面）
-    - id: directory-picker-browse
-      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+    # 注意：browse 与 workspace-picker 都注册 ctx.directoryPicker，同层插入会触发 cordis 的
+    # 重复服务错误 ⇒ browse 由 workspace-picker 在隔离作用域内自挂。
     - id: workspace-picker
       name: '@dsh-ohos/workspace-picker'
       config:
@@ -68,3 +77,17 @@
       name: '@dsh-ohos/facts'
       config:
         enabled: false
+
+    # 外部打开：宿主桥 shell.openExternal（ArkTS Want）；上游 open-in-app 行已在上方禁用。
+    - id: open-in-app-ohos
+      name: '@dsh-ohos/open-in-app'
+      config:
+        probeTimeoutMs: 10000
+        iconTimeoutMs: 10000
+        launchWatchMs: 1000
+
+    # 图像：sharp 替身是模块级重定向（S4），不是 cordis 插件；
+    # 这一行以 disabled 形式登记替换目标，避免被当作可 apply 的插件加载。
+    - id: attachment-image-ohos
+      name: '@dsh-ohos/attachment-image'
+      disabled: true

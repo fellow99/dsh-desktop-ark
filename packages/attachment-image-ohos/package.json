@@ -1,0 +1,12 @@
+{
+  "name": "@dsh-ohos/attachment-image",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./image": "./lib/image.js"
+  },
+  "license": "MIT"
+}

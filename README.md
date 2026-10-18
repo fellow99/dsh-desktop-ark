@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="MIT">
 </p>
 
-**Status** `0.1.0` — **scaffold** (`versionCode` 100). It compiles and packages: `hvigorw assembleHap` produces an unsigned HAP that, once the runtime is provisioned, is **44 MB** and carries the complete Node runtime plus the payload. The in-app self-check (`payload/selfcheck.js`) passes **7/7**. **No HarmonyOS device verification has been done** — see [Status](#status) for exactly what is proven and what is not.
+**Status** `0.1.0` — **scaffold** (`versionCode` 100). It now compiles, packages and **boots a real payload**: `assemble-payload.mjs --deploy` materializes the upstream dsh runtime (pruned from 628.6 MiB to 151 MiB, packed into a **40.4 MB** `dsh.tar.gz`), producing an **86 MB** unsigned HAP that carries the Node runtime plus the payload. On a host Node the same tree extracts in ~13 s, stages the profile, starts the Host and serves the unmodified dsh Web UI at the token URL (**HTTP 200**) with **0** unactivated profile rows. **No HarmonyOS device verification has been done** — see [Status](#status) for exactly what is proven and what is not.
 
 ## Two HarmonyOS editions
 
@@ -59,10 +59,10 @@ EntryAbility (ArkTS)
 |---|---|
 | ArkTS shell, ArkWeb host page, launch orchestration, readiness gate, diagnostics | ✅ implemented |
 | `ohos-node-bridge` HAR consumption, runtime provisioning (7 ELF gates + SHA-256), 44 MB HAP | ✅ verified by build |
-| Payload pipeline (`resfile` → self-extract), 5 shims, self-check 7/7, upstream pin check | ✅ verified on the host toolchain |
-| 8 `@dsh-ohos/*` seam plugins, workspace picker, `/_ohos/facts`, JIT-free distribution line | 📋 `planned` (documented in [`specs/`](./specs/)) |
-| Real dsh payload assembly (`assemble-payload.mjs` is dry-run until `--from`/`--apply`) | 📋 `not-implemented` — the HAP ships a `payload-missing` degradation |
-| On-device verification (L1–L4, ArkWeb → `127.0.0.1`, `sh` sentinel, JIT ACL) | ⛔ not done — no device |
+| Payload pipeline (`resfile` → self-extract), 5 shims, self-check 7/7, upstream pin check | ✅ verified on the host toolchain; profile is loaded from `<runRoot>/profiles/ohos` (moved out of `$DSH_HOME` so `@dsh-ohos/*` resolves) |
+| 8 `@dsh-ohos/*` seam plugins + shared host bridge (10 packages under `packages/*-ohos/`) | ✅ implemented (**partial**: no PTY, `notify.show` / `image.normalize` still ArkTS placeholders, approval presets disabled without a confining executor) |
+| Real dsh payload assembly + packaging | ✅ `--deploy` (pnpm deploy → link materialization → `@deepseek-ai` completion → non-hoisted flattening → prune → overlay → assertions); 41,331 files / 628.6 MiB → **15,192 files / 151 MiB** → `dsh.tar.gz` **40.4 MB** (`sha12 db181e3b4364`); HAP **86 MB** |
+| On-device verification (L1–L4, ArkWeb → `127.0.0.1`, `sh` sentinel, JIT ACL) | ⛔ not done — no device (host-Node end-to-end is green: extract → profile → `runProfile` → token URL `200`) |
 
 ## Repository layout
 

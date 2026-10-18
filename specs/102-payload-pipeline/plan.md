@@ -45,8 +45,8 @@
 7. **S5 只测量**：`sqlite.js` 打开内存库并 `CREATE VIRTUAL TABLE ... USING fts5`，返回 `{available,fts5,detail}`；没有 `module.register` 重定向。
 8. **解包无 fsync**：`writeReady` 用 `tmp + rename`，但没有 `fsync` 文件或目录（`overall-data-model.md` §2 要求 fsync）。
 9. **旧版本不清理**：`resolveRunRoot` 只按 `sha12` 新建目录，从不删除旧版本；规划 §4.5/§8.5 的「保留最近 1 份」未实现（FR-102-019 planned）。
-10. **装配脚本是空壳**：`assemble-payload.mjs` 只支持 `--from <已构建树>` 复制，不做 pnpm deploy、裁剪、覆盖层注入与断言（规划 §7.2 ①–⑤）；`package-payload.mjs` 在无 stage 时以 0 退出（dry-run 语义，但也可被误当成功）。
-11. **profile 未物化到 `$DSH_HOME`**：`profiles/ohos/` 只在仓库里，`host.js` 却从 `$DSH_HOME/profiles/ohos` 载入；没有任何脚本把它复制过去（属 105 的落地缺口，但由本模块的装配阶段负责注入，标 `planned`）。
+10. **装配脚本已实现（原为「空壳」）**：`assemble-payload.mjs` 现在支持 `--deploy`（`pnpm deploy --legacy` → 物化 Junction → 补全 `@deepseek-ai` 包 → 摊平 `.pnpm` 里的非 hoisted 依赖 → 删 store → 注入 web dist）、`--from`、剪裁（去掉 184 MB 的 Windows LibreOffice 套件、`*.ts`/`*.d.ts`/`*.map`/`*.md`、`tests/`）与断言；`--apply` 才落盘。实测：deploy 树 41 331 文件 / 628.6 MiB → 剪裁后 15 192 文件 / 151.3 MiB → gz 40.4 MB（sha12 `db181e3b4364`）。`package-payload.mjs` 增加了归档已最新时的快速跳过（`--force` 可重打）。
+11. **profile 的载入位置已修正**：`profiles/ohos/` 由装配注入到 `<runRoot>/profiles/ohos`，`host.js` 直接从运行根载入 —— 因为插件的 `import('@dsh-ohos/x')` 由 ESM 从 profile 目录向上解析，搬到 `$DSH_HOME` 会让 8 个 seam 插件全部 `ERR_MODULE_NOT_FOUND`（实测：搬到 `$DSH_HOME` 时 13 条未激活，改为运行根后 0 条）。用户级 patch 单独放 `$DSH_HOME/user-patch.yml`（升级不覆盖），由 bootstrap 首次创建空数组。
 
 ## 4. 数据模型（真实字段）
 
@@ -145,6 +145,7 @@
 | `payload/shims/sqlite.js` | 43 | S5：`node:sqlite` + FTS5 探测（重定向 not-implemented） |
 | `scripts/sync-payload.mjs` | 62 | `payload/` → resfile，生成 `dsh.version` |
 | `scripts/package-payload.mjs` | 89 | 确定性 ustar + gzip，重写归档与版本声明 |
-| `scripts/assemble-payload.mjs` | 60 | 装配（仅 `--from` 复制；裁剪/覆盖层 planned） |
+| `scripts/assemble-payload.mjs` | 520 | 装配：`--deploy`（deploy/物化/补全/摊平）· `--from` · 剪裁（去 Windows 预编译包、源码、类型、map、文档）· 覆盖层注入 · 断言（`@deepseek-ai/dsh`、web dist、profile、插入行可解析、无链接） |
+| `scripts/smoke-payload.mjs` | 96 | 载荷树冒烟：在宿主 Node 上 `loadProfileDirectory` + `reportSkippedBundles`，断言 8 个 `@dsh-ohos` 行与 7 个禁用行 |
 | `scripts/build-bridge-har.sh` | 30 | 构建并投放 node-bridge HAR |
 | `scripts/provision-runtime.sh` | 33 | 校验并投放 `libnode.so`/`libc++_shared.so` |

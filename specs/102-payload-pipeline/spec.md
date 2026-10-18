@@ -31,7 +31,7 @@
 | S3 文件锁替身、S4 图像库替身 | **planned**（当前只探测替身包是否存在，不提供行为） |
 | S5 内嵌 SQLite 重定向 | **not-implemented**（当前只测量可用性与 FTS5） |
 | 旧版本载荷清理（保留最近 1 份） | **planned** |
-| 装配阶段的上游物化、裁剪、覆盖层注入 | **planned**（装配脚本只做 `--from` 复制） |
+| 装配阶段的上游物化、裁剪、覆盖层注入 | implemented（`pnpm deploy --legacy` + 链接物化 + `@deepseek-ai` 补全 + 非 hoisted 摊平 + 剪裁 + profile/插件注入 + 断言；装配后 15 192 文件 / 151 MiB） |
 
 ## 2. 用户故事
 

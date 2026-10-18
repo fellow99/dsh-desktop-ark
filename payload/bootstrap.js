@@ -25,6 +25,7 @@ const READONLY_ROOT = process.env.NODE_BRIDGE_READONLY_ROOT || '';
 const ARCHIVE = process.env.NODE_BRIDGE_ARCHIVE || '';
 const APP_LOG = process.env.DSH_OHOS_APP_LOG || path.join(PAYLOAD_ROOT, 'app.log');
 const READY_FILE = path.join(PAYLOAD_ROOT, 'ready.json');
+const DSH_HOME = process.env.DSH_HOME || path.join(process.env.HOME || '/', 'dsh-home');
 const VERSION_FILE = path.join(ASSET_DIR, 'dsh.version');
 const SCAFFOLD_VERSION = '0.1.0+scaffold';
 
@@ -149,6 +150,25 @@ function resolveRunRoot(version) {
   log(`payload: extracted ${files} files -> ${target}`);
   return target;
 }
+/**
+ * 用户级 patch：`$DSH_HOME/user-patch.yml`（设备可改、升级不覆盖）。缺省写入空数组。
+ * 平台适配不在这一层（FR-105-006）。
+ */
+function ensureUserPatch() {
+  const file = path.join(DSH_HOME, 'user-patch.yml');
+  try {
+    fs.mkdirSync(DSH_HOME, { recursive: true });
+    if (!fs.existsSync(file)) {
+      fs.writeFileSync(file, '# 用户级 patch（设备可改；升级不覆盖）。空数组 = 无覆盖。\n[]\n');
+      log(`user-patch: created ${file}`);
+    }
+    return file;
+  } catch (error) {
+    const detail = error && error.message ? error.message : String(error);
+    log(`user-patch: 写入失败（不影响启动）：${detail}`);
+    return '';
+  }
+}
 
 async function main() {
   fs.mkdirSync(PAYLOAD_ROOT, { recursive: true });
@@ -174,6 +194,20 @@ async function main() {
     log(`bootstrap: payload-missing. ${diagnostic}`);
     return;
   }
+
+  // profile 必须留在运行根内：插件的 `import('@dsh-ohos/x')` 由 ESM 从 profile 目录向上解析，
+  // 只有 <runRoot>/node_modules 在解析链上（搬到 $DSH_HOME 会导致全部 seam 插件 import 失败）。
+  const profileDir = path.join(runRoot, 'profiles', 'ohos');
+  if (!fs.existsSync(path.join(profileDir, 'package.json'))) {
+    const detail = `载荷缺少 profiles/ohos：${profileDir}`;
+    writeReady({ phase: 'failed', diagnostic: detail, shims: shims.map((s) => s.marker) });
+    log(`bootstrap: ${detail}`);
+    return;
+  }
+  log(`profile: using ${profileDir}`);
+
+  // 用户级 patch 单独放 $DSH_HOME（设备可改、升级不覆盖；AC-105-05）
+  ensureUserPatch();
 
   const flock = require('./shims/flock.js').install(runRoot, log);
   const sharp = require('./shims/sharp.js').install(runRoot, log);

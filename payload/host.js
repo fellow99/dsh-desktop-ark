@@ -4,7 +4,7 @@
  *
  * 只做四件事：
  *   1) 从运行根解析上游包（`createRequire` 指向 `@deepseek-ai/dsh/package.json`）；
- *   2) `loadProfileDirectory` 载入 `$DSH_HOME/profiles/ohos`；
+ *   2) `loadProfileDirectory` 载入 `<runRoot>/profiles/ohos`（用户 patch 来自 `$DSH_HOME/user-patch.yml`）；
  *   3) `runProfile` 启动 Web 应用（`--host 127.0.0.1 --port 0 --no-open`）；
  *   4) 用 `ctx.connection.authenticatedUrl()` 上报带一次性 token 的入口 URL。
  *
@@ -30,7 +30,9 @@ const { createRequire } = require('node:module');
 async function start(ctx) {
   const { runRoot, version, shims, sqlite, log, writeReady } = ctx;
   const dshHome = process.env.DSH_HOME || path.join(process.env.HOME || '/', 'dsh-home');
-  const projectDir = path.join(dshHome, 'profiles', 'ohos');
+  // profile 留在运行根内：ESM 从该目录向上只会在 <runRoot>/node_modules 命中 @dsh-ohos/*。
+  const projectDir = path.join(runRoot, 'profiles', 'ohos');
+  const userPatch = path.join(dshHome, 'user-patch.yml');
   const dshManifest = path.join(runRoot, 'node_modules', '@deepseek-ai', 'dsh', 'package.json');
 
   writeReady({ phase: 'starting', sha12: version.sha12, shims: shims.map((s) => s.marker) });
@@ -66,7 +68,7 @@ async function start(ctx) {
       environment: appBoot.loadLayeredEnv('dsh'),
       profile: 'ohos',
       resolvedProfile: { profile, installAnchor: dshManifest },
-      patchFiles: [],
+      patchFiles: userPatch !== '' && fs.existsSync(userPatch) ? [userPatch] : [],
       args: ['--no-open', '--host', '127.0.0.1', '--port', '0']
     });
 

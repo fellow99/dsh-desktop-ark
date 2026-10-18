@@ -1,0 +1,11 @@
+{
+  "name": "@dsh-ohos/open-in-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js"
+  },
+  "license": "MIT"
+}
