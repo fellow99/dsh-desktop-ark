@@ -1,0 +1,94 @@
+{
+  "module": {
+    "name": "entry",
+    "type": "entry",
+    "description": "$string:module_desc",
+    "mainElement": "EntryAbility",
+    "deviceTypes": [
+      "2in1",
+      "tablet"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false,
+    "pages": "$profile:main_pages",
+    // 原生库压缩打包 + 安装时解到 libs/：libnode.so ≈121 MB，STORED 会让 HAP 膨胀。
+    // 这两个键必须写在 module 级（写进 build-profile.json5 会被 schema 拒绝）。
+    "compressNativeLibs": true,
+    "extractNativeLibs": true,
+    "abilities": [
+      {
+        "name": "EntryAbility",
+        "srcEntry": "./ets/entryability/EntryAbility.ets",
+        "description": "$string:EntryAbility_desc",
+        "icon": "$media:icon",
+        "label": "$string:EntryAbility_label",
+        "startWindowIcon": "$media:startIcon",
+        "startWindowBackground": "$color:start_window_background",
+        // 长时任务：agent 长回合不被系统挂起（与 dsh-desktop-hos 的 Electron 壳同口径）。
+        "backgroundModes": [
+          "taskKeeping"
+        ],
+        // 端口随机 + 数据目录唯一的前提：多实例会互抢 <filesDir> 与 cookie audience。
+        "launchType": "singleton",
+        "exported": true,
+        "skills": [
+          {
+            "entities": ["entity.system.home"],
+            "actions": ["action.system.home"]
+          }
+        ]
+      }
+    ],
+    "requestPermissions": [
+      { "name": "ohos.permission.INTERNET" },
+      { "name": "ohos.permission.GET_NETWORK_INFO" },
+      { "name": "ohos.permission.FILE_ACCESS_PERSIST" },
+      { "name": "ohos.permission.PREPARE_APP_TERMINATE" },
+      { "name": "ohos.permission.KEEP_BACKGROUND_RUNNING" },
+      // JIT：内置 Node/V8 必需；无它不带 --jitless 会 SIGTRAP。
+      { "name": "ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY" },
+      // 随包 Node 运行时继承父进程权限。
+      {
+        "name": "ohos.permission.INHERIT_PARENT_PERMISSION",
+        "reason": "$string:inherit_parent_permission",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
+      },
+      // 加载随包签名的原生库（libnode.so / libnode_bridge.so）时跳过库校验。
+      {
+        "name": "ohos.permission.kernel.IGNORE_LIBRARY_VALIDATION",
+        "reason": "$string:ignore_library_validation",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
+      },
+      {
+        "name": "ohos.permission.kernel.EXEMPT_ANONYMOUS_EXECUTABLE_MEMORY",
+        "reason": "$string:exempt_anonymous_executable_memory",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
+      },
+      {
+        "name": "ohos.permission.READ_PASTEBOARD",
+        "reason": "$string:access_pasteboard",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
+      },
+      // 四主目录之桌面 / 文档 / 下载（workspace-picker 的浏览域）。
+      {
+        "name": "ohos.permission.READ_WRITE_DESKTOP_DIRECTORY",
+        "reason": "$string:desktop_dir",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
+      },
+      {
+        "name": "ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY",
+        "reason": "$string:documents_dir",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
+      },
+      {
+        "name": "ohos.permission.READ_WRITE_DOWNLOAD_DIRECTORY",
+        "reason": "$string:download_dir",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
+      }
+    ],
+    // 与 requestPermissions 成对出现（受限权限两处都要有）。
+    "definePermissions": [
+      { "name": "ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY" }
+    ]
+  }
+}

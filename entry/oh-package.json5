@@ -1,0 +1,11 @@
+{
+  "name": "entry",
+  // 必须是 ≥1.0.0 的 SemVer：hvigor 对模块版本做 SemVer 校验（0.x 会告警）。
+  // 应用对外版本号在 AppScope/app.json5 的 versionName / versionCode。
+  "version": "1.0.0",
+  "description": "DSH Desktop（Ark 版）主模块：ArkWeb 渲染 + 进程内 Node 编排",
+  "main": "",
+  "author": "fellow99",
+  "license": "MIT",
+  "dependencies": {}
+}

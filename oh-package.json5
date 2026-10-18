@@ -1,0 +1,10 @@
+{
+  "modelVersion": "6.1.1",
+  "description": "DSH Desktop（Ark 版）—— ArkWeb 外壳 + 进程内 Node 承载 deepseek-harness",
+  "dependencies": {
+    // 依赖的是构建好的 HAR（不是源目录）：本工程开启 useNormalizedOHMUrl，
+    // 该模式下跨工程以相对路径导入源码会被 hvigor 拒绝（00309001）。
+    "@fellow99/node-bridge": "file:./libs/@fellow99/node-bridge.har"
+  },
+  "devDependencies": {}
+}

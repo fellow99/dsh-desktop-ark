@@ -1,0 +1,15 @@
+{
+  "name": "dsh-ohos-profile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DSH Desktop（Ark 版）的 profile：base + web-app + OHOS 适配层",
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "@dsh-ohos/bundle"
+      ]
+    }
+  }
+}

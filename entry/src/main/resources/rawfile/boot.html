@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DSH Desktop</title>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #ffffff; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      font-family: system-ui, -apple-system, "HarmonyOS Sans", sans-serif;
+      color: #666666;
+    }
+    .box { text-align: center; }
+    .dot {
+      width: 10px; height: 10px; margin: 0 auto 16px; border-radius: 50%;
+      background: #4D6BFE; animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: .35; transform: scale(.85); } 50% { opacity: 1; transform: scale(1); } }
+    .title { font-size: 18px; color: #222222; margin-bottom: 6px; }
+    .hint { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="dot"></div>
+    <div class="title">DSH Desktop</div>
+    <div class="hint">正在启动本地服务…</div>
+  </div>
+</body>
+</html>

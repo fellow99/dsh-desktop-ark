@@ -1,0 +1,17 @@
+{
+  "name": "@dsh-ohos/bundle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OHOS 适配层：在 dsh-base + dsh-web-app 之上替换平台相关行",
+  "license": "MIT",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": [
+        "./cordis.patch.yml"
+      ]
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "apiType": "stageMode",
+  "buildOption": {
+    // 本模块不编译 C++：NAPI 引导件随 @fellow99/node-bridge HAR 提供。
+    // 预置原生库只放 arm64-v8a（entry/libs/arm64-v8a/，由 scripts/provision-runtime.sh 投放）。
+    "nativeLib": {
+      "collectAllLibs": true
+    }
+  },
+  "targets": [
+    {
+      "name": "default"
+    }
+  ]
+}

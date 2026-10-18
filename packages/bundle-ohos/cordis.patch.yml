@@ -1,0 +1,70 @@
+# @dsh-ohos/bundle —— OHOS 适配层（叠加在 dsh-base 与 dsh-web-app 之后）。
+#
+# 只允许三类操作（见 specs/105-upstream-adapter-bundle/spec.md）：
+#   1) 按 id 禁用上游行；
+#   2) 按 id 覆盖上游行的 config；
+#   3) 插入本工程提供的行。
+# 不允许复制上游行内容，也不允许改写上游源码。
+
+# ── 配置热重载：设备上无意义，且增加 fs 压力 ────────────────────────────────
+- id: hmr
+  disabled: true
+
+# ── 进程/命令：换成 OHOS 实现（禁用上游行后插入同名服务的新提供方）──────────
+- id: subprocess
+  disabled: true
+
+- id: sandbox
+  disabled: true
+
+- id: bash-sandbox
+  disabled: true
+
+# 策略层保留（纯配置，无内核依赖）；workspaceRoot 必须显式覆盖：
+# 上游默认是 process.cwd()，而设备上 cwd 是 "/"。
+- id: sandbox-policy
+  config:
+    # 与上游 approval 行同源：避免出现「策略 workspace-write + 审批 never」的矛盾组合。
+    mode: !!js process.env.DSH_PERMISSION_MODE ?? 'workspace-write'
+    workspaceRoot: !!js process.env.DSH_OHOS_WORKSPACE
+
+# ── 目录选择：禁用 auto（它会动态挂载客户端面），静态挂 browse 原语 ─────────
+- id: directory-picker
+  disabled: true
+
+# ── 外部打开：换成 OHOS Want 实现 ──────────────────────────────────────────
+- id: open-in-app
+  disabled: true
+
+- insert:
+    # 进程与命令
+    - id: subprocess-ohos
+      name: '@dsh-ohos/subprocess'
+    - id: sandbox-ohos
+      name: '@dsh-ohos/sandbox'
+    - id: shell-ohos
+      name: '@dsh-ohos/shell'
+      config:
+        timeoutMs: 120000
+        shellPath: /system/bin/sh
+
+    # 四主目录工作区选择（host 面 + client 面）
+    - id: directory-picker-browse
+      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+    - id: workspace-picker
+      name: '@dsh-ohos/workspace-picker'
+      config:
+        sandboxRoot: !!js process.env.DSH_OHOS_WORKSPACE
+        userRoot: /storage/Users/currentUser
+        roots:
+          - desktop
+          - documents
+          - download
+
+    # 宿主通知与诊断
+    - id: notify-ohos
+      name: '@dsh-ohos/notify'
+    - id: facts-ohos
+      name: '@dsh-ohos/facts'
+      config:
+        enabled: false
