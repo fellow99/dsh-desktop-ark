@@ -127,7 +127,7 @@ function copyWorkspacePackage(pkgDir, destRoot) {
   cpSync(pkgDir, dest, {
     recursive: true,
     dereference: true,
-    filter: (src) => !src.includes(`${sep}node_modules`),
+    filter: (src) => !src.includes(`${sep}node_modules`) && !src.includes(`${sep}test`),
   });
   return short;
 }
@@ -298,7 +298,7 @@ function collectOhosPackages(stage) {
     cpSync(dir, dest, {
       recursive: true,
       dereference: true,
-      filter: (src) => !src.includes(`${sep}node_modules`),
+      filter: (src) => !src.includes(`${sep}node_modules`) && !src.includes(`${sep}test`),
     });
     if (manifest.dsh && manifest.dsh.bundle) {
       // 纯 YAML 覆盖层：没有 JS 入口，断言声明的 patch 文件存在即可。
@@ -408,27 +408,31 @@ function assertDeployInputs() {
 function deployTree() {
   assertDeployInputs();
   const target = resolve(WORK, 'dsh');
-  // 复用上一次物化结果（deploy 已把它摊平；--fresh 可强制重跑）
+  // 复用上一次物化结果（`--fresh` 可强制重跑 pnpm deploy）。
+  //
+  // 注意：**复用也要重跑“摊平三件套”**。中断过的 run 会留下半成品树
+  // （`.pnpm` 与 junction 都在），而后续剪裁只删 `.pnpm` 之外的平台包、
+  // 不做链接物化 ⇒ 复用时若不重跑，装配会在 `assertNoLinks` 处失败。
+  // 三步都是幂等的：已物化的目录会被跳过，已摊平的依赖会被去重。
   if (existsSync(target) && !flag('--fresh')) {
     log(`复用物化树：${target}（--fresh 可重跑 pnpm deploy）`);
   } else {
     rmSync(WORK, { recursive: true, force: true });
     mkdirSync(WORK, { recursive: true });
     run(`pnpm --filter @deepseek-ai/dsh deploy --legacy "${target}"`, DSH_ROOT);
-
-    const linked = materializeLinks(resolve(target, 'node_modules'), 0, []);
-    log(`物化链接 ${linked.length} 处`);
-
-    const workspacePackages = collectWorkspacePackages(target);
-    log(`补全 @deepseek-ai 包 ${workspacePackages.length} 个`);
-
-    const flat = collectNonHoistedDeps(target);
-    log(`补全非 hoisted 依赖 ${flat.length} 个`);
-
-    const store = resolve(target, 'node_modules/.pnpm');
-    if (existsSync(store)) rmSync(store, { recursive: true, force: true });
   }
 
+  const linked = materializeLinks(resolve(target, 'node_modules'), 0, []);
+  log(`物化链接 ${linked.length} 处`);
+
+  const workspacePackages = collectWorkspacePackages(target);
+  log(`补全 @deepseek-ai 包 ${workspacePackages.length} 个`);
+
+  const flat = collectNonHoistedDeps(target);
+  log(`补全非 hoisted 依赖 ${flat.length} 个`);
+
+  const store = resolve(target, 'node_modules/.pnpm');
+  if (existsSync(store)) rmSync(store, { recursive: true, force: true });
   const webDist = resolve(DSH_ROOT, 'apps/web/dist');
   const webFrontend = resolve(target, 'node_modules/@deepseek-ai/dsh-web-frontend/dist');
   if (!existsSync(webDist)) fail(2, `缺少 Web UI 产物：${webDist}`, '在 ../deepseek-harness 执行 pnpm run build:web');

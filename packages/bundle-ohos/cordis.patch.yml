@@ -57,22 +57,23 @@
         timeoutMs: 120000
         shellPath: /system/bin/sh
 
-    # 目录选择器的客户端面：上游 directory-picker-auto 会动态挂载
-    # backend+surface 这一对；我们把 host 面换成 workspace-picker 后，必须显式
-    # 钉住 browse 的客户端面，否则「选择工作区」按钮没有 UI 可渲染（点击无反应）。
-    - id: directory-picker-browse-client
-      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
+    # 目录选择器的客户端面：上游 directory-picker-auto 会动态挂载 backend+surface 这一对；
+    # 我们把 host 面换成 workspace-picker 后必须显式钉住客户端面（否则「选择工作区」点击无反应）。
+    # 用本工程自己的对话框：三 Tab（沙箱/文档/下载）+ 权限门（未授权时只显示「请求权限/刷新」），
+    # 上游 browse 对话框没有 Tab，也无法表达「点 Tab 不申请权限」。
+    - id: workspace-picker-client
+      name: '@dsh-ohos/workspace-picker-client'
 
-    # 四主目录工作区选择（host 面 + client 面）
+    # 工作区选择（三根：沙箱 / 文档 / 下载；「桌面」已移除——它需要需 ACL 的
+    # READ_WRITE_DESKTOP_DIRECTORY，见 docs/ACL配置.md）。
     # 注意：browse 与 workspace-picker 都注册 ctx.directoryPicker，同层插入会触发 cordis 的
-    # 重复服务错误 ⇒ browse 由 workspace-picker 在隔离作用域内自挂。
+    # 重复服务错误 ⇒ 原语由 workspace-picker 自实现，不再委派 browse 后端。
     - id: workspace-picker
       name: '@dsh-ohos/workspace-picker'
       config:
         sandboxRoot: !!js process.env.DSH_OHOS_WORKSPACE
         userRoot: /storage/Users/currentUser
         roots:
-          - desktop
           - documents
           - download
 

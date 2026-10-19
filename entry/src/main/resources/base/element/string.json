@@ -3,11 +3,9 @@
     { "name": "module_desc", "value": "DSH Desktop 主模块" },
     { "name": "EntryAbility_desc", "value": "DSH Desktop" },
     { "name": "EntryAbility_label", "value": "DSH Desktop" },
+    { "name": "prepare_app_terminate", "value": "退出前先停止内置 Node 运行时" },
     { "name": "inherit_parent_permission", "value": "内置 Node 运行时需要与宿主一致的执行权限" },
     { "name": "ignore_library_validation", "value": "加载随包分发的 Node 运行时原生库" },
-    { "name": "exempt_anonymous_executable_memory", "value": "JavaScript 引擎需要可执行内存（JIT）" },
-    { "name": "access_pasteboard", "value": "把剪贴板中的图片粘贴到对话附件" },
-    { "name": "desktop_dir", "value": "把桌面目录中的文件夹注册为工作区" },
     { "name": "documents_dir", "value": "把文档目录中的文件夹注册为工作区" },
     { "name": "download_dir", "value": "把下载目录中的文件夹注册为工作区" }
   ]

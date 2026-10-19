@@ -1,0 +1,30 @@
+{
+  "name": "@dsh-ohos/workspace-picker-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "HarmonyOS workspace directory dialog (sandbox / documents / download tabs, gated by runtime permission).",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib/"
+  ],
+  "license": "MIT"
+}

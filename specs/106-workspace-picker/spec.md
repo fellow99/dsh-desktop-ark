@@ -4,6 +4,12 @@
 > 来源：`docs/000-工程规划.md` §5.2 第 4 项及其后的专节规格、§8.2、§14（D7/D8）；`../dsh-desktop-hos/docs/203-插件-选择工作区目录.md`；`specs/overall-spec.md` §3.4/§3.5；`specs/overall-test-cases.md` §8
 > 需求语言遵循 RFC 2119（MUST / SHOULD / MAY）。本文件不含实现细节（不出现文件名、路径常量、API 名）。
 
+> **⚠️ 2026-10-20 变更（以此为准，与本文件既有「四主目录」表述冲突时按本条执行）**
+> 1. **移除「桌面」**：该目录依赖 `READ_WRITE_DESKTOP_DIRECTORY`（system_basic ⇒ 需 ACL），已随 ACL 收敛撤销；可浏览根只剩 **沙箱 / 文档 / 下载**。
+> 2. **授权门**：点「文档」「下载」Tab **只查询权限、不申请**。未授权时**不显示列表**，改为两个按钮「请求权限」「刷新」——「请求权限」弹系统授权窗，「刷新」重新判定后渲染列表。
+> 3. 依据与逐项判定：`docs/ACL配置.md` §3/§5；零 ACL 评估：`docs/ACL-无ACL评估.md`。
+> 4. 实现落点：Host `packages/workspace-picker-ohos`（`permission()`/`requestPermission()` + `/_ohos/picker/*` 路由）、Client `packages/workspace-picker-client-ohos`。
+
 ---
 ## 1. 模块概述
 **目的**：把"添加工作区"的目录选择对话框，从只能浏览应用沙箱，扩展为可在四个已授权主目录（沙箱 / 桌面 / 文档 / 下载）内浏览、下钻、新建并选中文件夹，同时保证四个目录互不越界。

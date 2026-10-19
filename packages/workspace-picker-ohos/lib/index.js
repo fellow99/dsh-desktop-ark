@@ -38,20 +38,33 @@ import { mkdir, readdir, stat } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
 import { Service } from '@deepseek-ai/cordis'
 import { invoke as invokeHost, USER_CHOICE_TIMEOUT_MS } from '@dsh-ohos/host-bridge'
+import { registerPickerRoutes } from './routes.js'
 
-/** Root ids in the fixed tab order (`docs/000-工程规划.md` §5.2 #4). */
-export const ROOT_IDS = Object.freeze(['sandbox', 'desktop', 'documents', 'download'])
+export { registerPickerRoutes }
 
-/** Fixed user directory names (`Constants.ets:38-39`). */
+/**
+ * Root ids in the fixed tab order.
+ *
+ * 「桌面」已按 2026-10-19 的真机测试结论移除：桌面目录需要
+ * `ohos.permission.READ_WRITE_DESKTOP_DIRECTORY`（system_basic ⇒ 需 ACL），
+ * 而工作区选择的真实用途只在沙箱与用户文档/下载；撤销该权限后选择器不再有桌面 Tab
+ * （见 `docs/ACL配置.md` §1）。
+ */
+export const ROOT_IDS = Object.freeze(['sandbox', 'documents', 'download'])
+
+/** Fixed user directory names (`Constants.ets` USER_ROOT 下的真实目录名). */
 export const USER_DIR_NAMES = Object.freeze({
-  desktop: 'Desktop',
   documents: 'Documents',
   download: 'Download',
 })
 
-/** OHOS permissions consumed by each user root (`docs` §5.2 #4 授权). */
+/**
+ * OHOS permissions consumed by each user root.
+ *
+ * 两项都是 `normal` + `user_grant`（**不需要 ACL**，安装即声明，运行期由用户授权），
+ * 因此点 Tab 只做“查询”，授权动作由用户在对话框里点「请求权限」触发。
+ */
 export const ROOT_PERMISSIONS = Object.freeze({
-  desktop: 'ohos.permission.READ_WRITE_DESKTOP_DIRECTORY',
   documents: 'ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY',
   download: 'ohos.permission.READ_WRITE_DOWNLOAD_DIRECTORY',
 })
@@ -103,7 +116,8 @@ export function resolveRoots(config = {}, env = process.env) {
       `workspace-picker: sandboxRoot must be an absolute path (config.sandboxRoot or ${WORKSPACE_ENV}); process.cwd() is never used`,
     )
   }
-  const requested = config.roots ?? ['desktop', 'documents', 'download']
+  // 默认只暴露有实际用途、且不需要 ACL 的两个用户目录（桌面已移除，见 ROOT_IDS 注释）。
+  const requested = config.roots ?? ['documents', 'download']
   if (!Array.isArray(requested)) throw new Error('workspace-picker: roots must be an array of root ids')
   const userRoot = config.userRoot ?? env[USER_ROOT_ENV]
   const roots = [{ id: 'sandbox', name: 'Sandbox', path: trimmedRoot(sandboxRoot), kind: 'sandbox' }]
@@ -267,13 +281,20 @@ export class OhosDirectoryPicker extends Service {
    */
   async browse() {
     if (this.browseCapability !== undefined) return this.browseCapability
+    // 只有“别人的” browse 能力才采用。注意 cordis 的服务是**代理**（`existing !== this`
+    // 恒真），因此必须比 capability 对象的身份：否则会把自己的 capability 当成外部后端，
+    // list → capability.list → list 无限自递归（表现为 RPC 永久挂起，真机踩过这个形态）。
     const existing = this.ctx.get?.('directoryPicker')
-    if (existing !== undefined && existing !== this) {
-      const capability = existing.capability?.()
-      if (capability?.kind === 'browse') {
-        this.browseCapability = capability
-        return capability
-      }
+    const capability = existing?.capability?.()
+    if (
+      capability !== undefined &&
+      capability !== this.capabilityObject &&
+      capability.kind === 'browse' &&
+      typeof capability.list === 'function' &&
+      typeof capability.createDirectory === 'function'
+    ) {
+      this.browseCapability = capability
+      return capability
     }
     this.browseCapability = {
       kind: 'browse',
@@ -294,7 +315,7 @@ export class OhosDirectoryPicker extends Service {
    * @returns {Promise<Record<string, unknown>>}
    */
   async list(path, signal) {
-    console.log(`[workspace-picker] list(${String(path)})`)
+    if (process.env.DSH_OHOS_PICKER_TRACE === '1') console.log(`[workspace-picker] list(${String(path)})`)
     const raw = path ?? this.roots[0].path
     const { root, path: target } = fencePath(raw, this.roots)
     signal?.throwIfAborted()
@@ -327,10 +348,9 @@ export class OhosDirectoryPicker extends Service {
       const listing = await capability.list(canonical, signal)
       return this.normalizeListing(listing, root, canonicalRoot)
     } catch (error) {
-      const granted = await this.retryPermission(error, root)
-      if (granted !== true) throw this.pickerError(error, target, root)
-      const listing = await capability.list(canonical, signal)
-      return this.normalizeListing(listing, root, canonicalRoot)
+      // 不在这里申请权限：点 Tab 只应“判断 + 渲染”。授权动作由对话框里的
+      // 「请求权限」按钮显式触发（`requestPermission()`），见 docs/ACL配置.md §2。
+      throw this.pickerError(error, target, root)
     }
   }
 
@@ -341,7 +361,7 @@ export class OhosDirectoryPicker extends Service {
    * @returns {Promise<string>}
    */
   async createDirectory(path, name) {
-    console.log(`[workspace-picker] createDirectory(${String(path)}, ${String(name)})`)
+    if (process.env.DSH_OHOS_PICKER_TRACE === '1') console.log(`[workspace-picker] createDirectory(${String(path)}, ${String(name)})`)
     const { root, path: parent } = fencePath(path, this.roots)
     if (typeof name !== 'string' || name.trim() === '' || name === '.' || name === '..' || /[/\\]/.test(name)) {
       throw new DirectoryPickerError('directory-create-failed', resolve(parent, String(name)), `"${name}" is not a single path segment`)
@@ -362,29 +382,60 @@ export class OhosDirectoryPicker extends Service {
       return canonical
     } catch (error) {
       if (error instanceof DirectoryPickerError) throw error
-      const granted = await this.retryPermission(error, root)
-      if (granted !== true) throw this.pickerError(error, canonicalParent, root, 'directory-create-failed')
-      return canonicalOr(await capability.createDirectory(canonicalParent, name))
+      // 与 list 同口径：不自动弹授权窗，交给对话框的「请求权限」按钮。
+      throw this.pickerError(error, canonicalParent, root, 'directory-create-failed')
     }
   }
 
   /**
-   * Ask the host for permission after an access denial, then retry once.
-   * @param {unknown} error
-   * @param {Record<string, any>} root
-   * @returns {Promise<boolean | undefined>} `true` = retry, `false` = denied,
-   *   `undefined` = not a permission failure (or the bridge is unavailable).
+   * 查一个 root 的权限状态（**只查不申请**）。
+   * @param {string} rootId - `sandbox` / `documents` / `download`
+   * @returns {Promise<{ rootId: string, permission?: string, granted: boolean | null, detail: string }>}
+   *   `granted === null` 表示无法判定（宿主桥不可用或无权限要求），调用方不得当作已授权。
    */
-  async retryPermission(error, root) {
-    if (root.permission === undefined || !isPermissionFailure(error)) return undefined
+  async permission(rootId) {
+    const root = this.roots.find((candidate) => candidate.id === rootId)
+    if (root === undefined) {
+      return { rootId, granted: null, detail: `unknown root ${JSON.stringify(rootId)}` }
+    }
+    if (root.permission === undefined) return { rootId, granted: true, detail: 'no permission required' }
     try {
       const check = await invokeHost('perm.check', { name: root.permission }, { timeoutMs: 5_000 })
-      if (check.granted === true) return true
-      const request = await invokeHost('perm.request', { names: [root.permission] }, { timeoutMs: USER_CHOICE_TIMEOUT_MS })
-      return Array.isArray(request.authResults) && request.authResults[0] === 0
+      return { rootId, permission: root.permission, granted: check?.granted === true, detail: 'ok' }
     } catch (bridgeError) {
-      this.permissionHint = `permission gate unavailable: ${bridgeError instanceof Error ? bridgeError.message : String(bridgeError)}`
-      return undefined
+      return {
+        rootId,
+        permission: root.permission,
+        granted: null,
+        detail: `permission gate unavailable: ${messageOf(bridgeError)}`,
+      }
+    }
+  }
+
+  /**
+   * 申请一个 root 的权限（用户显式触发；会弹系统授权窗）。
+   * @param {string} rootId
+   * @returns {Promise<{ rootId: string, permission?: string, granted: boolean, detail: string }>}
+   */
+  async requestPermission(rootId) {
+    const root = this.roots.find((candidate) => candidate.id === rootId)
+    if (root === undefined) return { rootId, granted: false, detail: `unknown root ${JSON.stringify(rootId)}` }
+    if (root.permission === undefined) return { rootId, granted: true, detail: 'no permission required' }
+    try {
+      const check = await invokeHost('perm.check', { name: root.permission }, { timeoutMs: 5_000 })
+      if (check?.granted === true) {
+        return { rootId, permission: root.permission, granted: true, detail: 'already granted' }
+      }
+      const request = await invokeHost('perm.request', { names: [root.permission] }, { timeoutMs: USER_CHOICE_TIMEOUT_MS })
+      const granted = Array.isArray(request?.authResults) && request.authResults[0] === 0
+      return {
+        rootId,
+        permission: root.permission,
+        granted,
+        detail: granted ? 'granted' : `denied (authResults=${JSON.stringify(request?.authResults ?? [])})`,
+      }
+    } catch (bridgeError) {
+      return { rootId, permission: root.permission, granted: false, detail: `permission gate unavailable: ${messageOf(bridgeError)}` }
     }
   }
 
@@ -400,12 +451,15 @@ export class OhosDirectoryPicker extends Service {
     if (error instanceof DirectoryPickerError) return error
     const code = DIRECTORY_PICKER_ERROR_CODES.includes(error?.code) ? error.code : fallbackCode
     const failure = new DirectoryPickerError(code, path, messageOf(error))
+    const denied = error?.code === 'EACCES' || error?.code === 'EPERM'
     if (root.permission !== undefined) failure.permission = root.permission
     if (this.permissionHint !== undefined) {
       failure.hint = this.permissionHint
       this.permissionHint = undefined
     }
-    if (error?.code === 'EACCES' || error?.code === 'EPERM') failure.denied = true
+    if (denied) failure.denied = true
+    // 客户端据此区分「没有权限」与「目录不存在/不可读」：只有 denied 才渲染授权按钮。
+    if (denied && root.permission !== undefined) failure.permissionRequired = true
     return failure
   }
 
@@ -499,4 +553,24 @@ function messageOf(error) {
   return error instanceof Error ? error.message : String(error)
 }
 
-export default OhosDirectoryPicker
+/**
+ * Cordis 插件名（函数式插件；`default` 导出本函数见文件末尾）。
+ *
+ * 刻意**不声明模块级 `inject`**：`ctx.directoryPicker` 必须在插件加载时立刻注册，
+ * 否则上游 `directoryPickerController`（`static inject = ['directoryPicker']`）的 fiber
+ * 会停在 PENDING，客户端 RPC 永久挂起。路由需要 `webServer`/`connection`，
+ * 因此放在 `ctx.inject([...])` 的子 fiber 里注册。
+ */
+export const name = 'workspace-picker'
+
+/**
+ * 插件入口：先注册服务，再在子 fiber 里挂对话框用的 HTTP 路由。
+ * @param {import('@deepseek-ai/cordis').Context} ctx
+ * @param {{ sandboxRoot?: string, userRoot?: string, roots?: string[] }} [config]
+ */
+export function apply(ctx, config) {
+  const picker = new OhosDirectoryPicker(ctx, config ?? {})
+  ctx.inject(['webServer', 'connection'], (scoped) => registerPickerRoutes(scoped, picker))
+}
+
+export default apply
