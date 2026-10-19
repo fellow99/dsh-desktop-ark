@@ -34,7 +34,7 @@
  */
 
 import { realpathSync } from 'node:fs'
-import { mkdir, stat } from 'node:fs/promises'
+import { mkdir, readdir, stat } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
 import { Service } from '@deepseek-ai/cordis'
 import { invoke as invokeHost, USER_CHOICE_TIMEOUT_MS } from '@dsh-ohos/host-bridge'
@@ -234,6 +234,8 @@ export class OhosDirectoryPicker extends Service {
       list: (path, signal) => this.list(path, signal),
       createDirectory: (path, name) => this.createDirectory(path, name),
     }
+    // 启动可见性：诊断「服务是否真的注册了」比猜 RPC 是否挂起更快（见 logs/20261019-1）。
+    console.log(`[workspace-picker] registered ctx.directoryPicker roots=${this.roots.map((root) => root.id).join(',')}`)
   }
 
   /**
@@ -253,7 +255,14 @@ export class OhosDirectoryPicker extends Service {
   }
 
   /**
-   * Resolve the delegated browse primitives.
+   * Resolve the browse primitives.
+   *
+   * 本包自实现（`node:fs` 的 readdir/mkdir），不再委派上游
+   * `@deepseek-ai/dsh-host-directory-picker-browse`：上游那套必须在隔离作用域里
+   * `isolate()` + 动态 `import()` 现挂，在 OHOS 宿主（`--expose-internals` +
+   * app-boot 的解析钩子）上该 import 会把 RPC 永久挂住——客户端停在「加载中…」，
+   * 服务端无错误、无响应（HAD-W32 实测）。这两个原语本身只是目录读写，
+   * 自实现后同一份围栏逻辑同时约束 list 与 createDirectory。
    * @returns {Promise<{ list: Function, createDirectory: Function }>}
    */
   async browse() {
@@ -266,31 +275,16 @@ export class OhosDirectoryPicker extends Service {
         return capability
       }
     }
-    const isolated = this.ctx.isolate?.('directoryPicker')
-    if (isolated === undefined) {
-      throw new DirectoryPickerError('directory-unreadable', this.roots[0].path, 'directory-picker/unavailable: cordis context has no isolate()')
+    this.browseCapability = {
+      kind: 'browse',
+      list: (target, signal) => listDirectory(target, this.maxEntries, signal),
+      createDirectory: async (parent, name) => {
+        const target = join(parent, name)
+        await mkdir(target)
+        return target
+      },
     }
-    let module
-    try {
-      module = await import('@deepseek-ai/dsh-host-directory-picker-browse')
-    } catch (error) {
-      throw new DirectoryPickerError(
-        'directory-unreadable',
-        this.roots[0].path,
-        `directory-picker/unavailable: cannot load @deepseek-ai/dsh-host-directory-picker-browse (${error instanceof Error ? error.message : String(error)})`,
-      )
-    }
-    const Ctor = module.default ?? module.BrowseDirectoryPicker
-    if (typeof Ctor !== 'function') {
-      throw new DirectoryPickerError('directory-unreadable', this.roots[0].path, 'directory-picker/unavailable: browse backend has no default class export')
-    }
-    const instance = new Ctor(isolated, { maxEntries: this.maxEntries })
-    const capability = instance.capability()
-    if (capability?.kind !== 'browse') {
-      throw new DirectoryPickerError('directory-unreadable', this.roots[0].path, 'directory-picker/unavailable: browse backend did not expose the browse capability')
-    }
-    this.browseCapability = capability
-    return capability
+    return this.browseCapability
   }
 
   /**
@@ -300,6 +294,7 @@ export class OhosDirectoryPicker extends Service {
    * @returns {Promise<Record<string, unknown>>}
    */
   async list(path, signal) {
+    console.log(`[workspace-picker] list(${String(path)})`)
     const raw = path ?? this.roots[0].path
     const { root, path: target } = fencePath(raw, this.roots)
     signal?.throwIfAborted()
@@ -310,8 +305,10 @@ export class OhosDirectoryPicker extends Service {
         throw new DirectoryPickerError('directory-unreadable', root.path, `cannot create the sandbox workspace ${root.path}: ${messageOf(error)}`)
       }
     }
+    // 用 canonical 两侧比较：Windows 的 8.3 短名（ADMINI~1）会让单侧 realpath 与配置路径对不上。
+    const canonicalRoot = canonicalOr(root.path)
     const canonical = canonicalOr(target)
-    if (!isWithin(canonical, root.path)) {
+    if (!isWithin(canonical, canonicalRoot) && !isWithin(canonical, root.path)) {
       throw new DirectoryPickerError('directory-unreadable', target, `cannot list "${target}": resolves outside the ${root.id} root (root fence)`)
     }
     let info
@@ -328,12 +325,12 @@ export class OhosDirectoryPicker extends Service {
     const capability = await this.browse()
     try {
       const listing = await capability.list(canonical, signal)
-      return this.normalizeListing(listing, root)
+      return this.normalizeListing(listing, root, canonicalRoot)
     } catch (error) {
       const granted = await this.retryPermission(error, root)
       if (granted !== true) throw this.pickerError(error, target, root)
       const listing = await capability.list(canonical, signal)
-      return this.normalizeListing(listing, root)
+      return this.normalizeListing(listing, root, canonicalRoot)
     }
   }
 
@@ -344,12 +341,14 @@ export class OhosDirectoryPicker extends Service {
    * @returns {Promise<string>}
    */
   async createDirectory(path, name) {
+    console.log(`[workspace-picker] createDirectory(${String(path)}, ${String(name)})`)
     const { root, path: parent } = fencePath(path, this.roots)
     if (typeof name !== 'string' || name.trim() === '' || name === '.' || name === '..' || /[/\\]/.test(name)) {
       throw new DirectoryPickerError('directory-create-failed', resolve(parent, String(name)), `"${name}" is not a single path segment`)
     }
     const canonicalParent = canonicalOr(parent)
-    if (!isWithin(canonicalParent, root.path)) {
+    const canonicalRoot = canonicalOr(root.path)
+    if (!isWithin(canonicalParent, canonicalRoot) && !isWithin(canonicalParent, root.path)) {
       throw new DirectoryPickerError('directory-create-failed', parent, `cannot create under "${parent}": resolves outside the ${root.id} root (root fence)`)
     }
     if (root.id === 'sandbox') await mkdir(root.path, { recursive: true }).catch(() => {})
@@ -357,7 +356,7 @@ export class OhosDirectoryPicker extends Service {
     try {
       const created = await capability.createDirectory(canonicalParent, name)
       const canonical = canonicalOr(created)
-      if (!isWithin(canonical, root.path)) {
+      if (!isWithin(canonical, canonicalRoot) && !isWithin(canonical, root.path)) {
         throw new DirectoryPickerError('directory-create-failed', created, `created path escapes the ${root.id} root (root fence)`)
       }
       return canonical
@@ -414,14 +413,16 @@ export class OhosDirectoryPicker extends Service {
    * Truncate ancestry and enforce containment on every entry.
    * @param {Record<string, any>} listing
    * @param {Record<string, any>} root
+   * @param {string} [rootPath] - root 的 canonical 形式（Windows 8.3 短名场景必需）
    * @returns {Record<string, any>}
    */
-  normalizeListing(listing, root) {
+  normalizeListing(listing, root, rootPath = root.path) {
     const entries = []
     let fencedOut = 0
+    const inside = (candidate) => isWithin(candidate, rootPath) || isWithin(candidate, root.path)
     for (const entry of listing.entries ?? []) {
       const canonical = canonicalOr(entry.path)
-      if (!isWithin(entry.path, root.path) || !isWithin(canonical, root.path)) {
+      if (!inside(entry.path) || !inside(canonical)) {
         fencedOut += 1
         continue
       }
@@ -430,7 +431,7 @@ export class OhosDirectoryPicker extends Service {
     return {
       path: canonicalOr(listing.path),
       home: listing.home,
-      crumbs: truncateCrumbs(listing.crumbs ?? [], root.path),
+      crumbs: truncateCrumbs(listing.crumbs ?? [], rootPath),
       entries,
       truncated: listing.truncated === true,
       root: root.id,
@@ -438,6 +439,60 @@ export class OhosDirectoryPicker extends Service {
       ...(fencedOut > 0 ? { fencedOut } : {}),
     }
   }
+}
+
+/**
+ * List one directory level with the shape the browser surface expects.
+ * 只返回可进入的子目录（与上游 browse `directoryRow` 同口径），隐藏项打 `hidden`。
+ * @param {string} target - 绝对目录路径
+ * @param {number} maxEntries - 单层条目上限
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<{ path: string, home: string, crumbs: Array<{name: string, path: string, hidden: boolean}>, entries: Array<{name: string, path: string, hidden: boolean}>, truncated: boolean }>}
+ */
+async function listDirectory(target, maxEntries, signal) {
+  signal?.throwIfAborted()
+  const dirents = await readdir(target, { withFileTypes: true })
+  const rows = []
+  for (const dirent of dirents) {
+    let enterable = dirent.isDirectory()
+    if (!enterable && dirent.isSymbolicLink()) {
+      // 设备上通常没有 symlink；有则按目标类型判定（失败即视为不可进入，不猜）。
+      try {
+        enterable = (await stat(join(target, dirent.name))).isDirectory()
+      } catch {
+        enterable = false
+      }
+    }
+    if (!enterable) continue
+    rows.push({ name: dirent.name, path: join(target, dirent.name), hidden: dirent.name.startsWith('.') })
+  }
+  rows.sort((left, right) => left.name.localeCompare(right.name))
+  const truncated = rows.length > maxEntries
+  return {
+    path: target,
+    home: target,
+    crumbs: buildCrumbs(target),
+    entries: truncated ? rows.slice(0, maxEntries) : rows,
+    truncated,
+  }
+}
+
+/**
+ * Ancestry of an absolute path as crumbs（从 `/` 到自身）。
+ * @param {string} target
+ * @returns {Array<{ name: string, path: string, hidden: boolean }>}
+ */
+function buildCrumbs(target) {
+  const crumbs = []
+  let current = resolve(target)
+  for (;;) {
+    const name = basename(current) || current
+    crumbs.unshift({ name, path: current, hidden: name.startsWith('.') })
+    const parent = resolve(current, '..')
+    if (parent === current) break
+    current = parent
+  }
+  return crumbs
 }
 
 function messageOf(error) {

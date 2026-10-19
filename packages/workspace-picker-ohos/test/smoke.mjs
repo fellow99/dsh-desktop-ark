@@ -13,7 +13,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { registerHooks } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -144,21 +144,30 @@ await test('list(): outside-root path is fenced before any backend call', async 
   await assert.rejects(() => service.list(outside), /outside the allowed roots/)
 })
 
-await test('list(): sandbox root is auto-created, then the backend is unavailable', async () => {
+await test('list(): sandbox root is auto-created and listed by the local primitives', async () => {
   const freshRoot = join(mkdtempSync(join(tmpdir(), 'dsh-ohos-picker-fresh-')), 'workspace')
   const service = new picker.OhosDirectoryPicker(fakeCtx(), { sandboxRoot: freshRoot, userRoot, roots: [] })
-  await assert.rejects(
-    () => service.list(),
-    error => error.name === 'DirectoryPickerError' && /directory-picker\/unavailable/.test(error.message),
-  )
+  mkdirSync(join(freshRoot, 'alpha'), { recursive: true })
+  mkdirSync(join(freshRoot, '.hidden'), { recursive: true })
+  writeFileSync(join(freshRoot, 'file.txt'), 'x')
+  const listing = await service.list()
+  assert.equal(listing.root, 'sandbox')
+  assert.deepEqual(listing.entries.map(entry => entry.name), ['.hidden', 'alpha'])
+  assert.equal(listing.entries[0].hidden, true)
+  assert.equal(listing.entries[1].hidden, false)
+  assert.equal(listing.truncated, false)
+  assert.ok(listing.crumbs.length > 0)
 })
 
-await test('createDirectory(): single-segment validation and backend unavailability', async () => {
+await test('createDirectory(): single-segment validation and real creation', async () => {
   const service = new picker.OhosDirectoryPicker(fakeCtx(), config)
   await assert.rejects(() => service.createDirectory(workspace, '..'), error => error.code === 'directory-create-failed')
   await assert.rejects(() => service.createDirectory(workspace, 'a/b'), error => error.code === 'directory-create-failed')
   await assert.rejects(() => service.createDirectory(workspace, ''), error => error.code === 'directory-create-failed')
-  await assert.rejects(() => service.createDirectory(workspace, 'new-dir'), /directory-picker\/unavailable/)
+  const created = await service.createDirectory(workspace, 'new-dir')
+  assert.ok(existsSync(created), '目录真的被创建')
+  const listing = await service.list(workspace)
+  assert.ok(listing.entries.some(entry => entry.name === 'new-dir'))
 })
 
 rmSync(workspace, { recursive: true, force: true })

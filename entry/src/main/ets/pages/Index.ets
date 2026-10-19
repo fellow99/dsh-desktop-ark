@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { webview } from '@kit.ArkWeb';
+import BuildProfile from 'BuildProfile';
 import { DshRuntime, LaunchPhase, LaunchSnapshot } from '../app/DshRuntime';
 
 /**
@@ -23,6 +24,14 @@ struct Index {
   @State showOverlay: boolean = true;
 
   aboutToAppear(): void {
+    // 调试通道：debug 构建开启 ArkWeb 远程调试（CDP），release 关闭。
+    if (BuildProfile.DEBUG) {
+      try {
+        webview.WebviewController.setWebDebuggingAccess(true);
+      } catch (error) {
+        // 平台不支持时忽略：只影响调试，不影响功能。
+      }
+    }
     const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
     this.runtime.launch(context, (snapshot: LaunchSnapshot): void => {
       this.phase = snapshot.phase;
@@ -71,11 +80,17 @@ struct Index {
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
-      Web({ src: $rawfile('boot.html'), controller: this.controller })
+      // RenderMode.SYNC_RENDER：ASYNC_RENDER 下 Web 是独立图形 surface 节点，真机上系统输入法
+      // 窗口出现/关闭后该 surface 会脱离合成树（截图整片黑、DOM 仍正常），SYNC_RENDER 把内容
+      // 作为画布节点与系统组件一起合成，规避该缺陷（HAD-W32 / API 26 实测）。
+      Web({ src: $rawfile('boot.html'), controller: this.controller, renderMode: RenderMode.SYNC_RENDER })
         .javaScriptAccess(true)
         .domStorageAccess(true)
         .databaseAccess(true)
         .fileAccess(false)
+        // 自动填充会拉起系统 AutoFillAbility 窗口，真机上会让 Web 表面变黑（HAD-W32/API26 实测）。
+        // 关闭后输入框仍可正常键入；调试亦可用 CDP。
+        .enableAutoFill(false)
         // 导航围栏（FR-UI-003 / FR-103-008）：只放行本机服务；外链交给系统。
         .onLoadIntercept((event: OnLoadInterceptEvent): boolean => {
           const url: string = event.data.getRequestUrl();

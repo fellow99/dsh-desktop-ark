@@ -73,7 +73,16 @@ async function start(ctx) {
     });
 
     const { ctx: hostCtx } = await application;
-    const origin = `${hostCtx.webServer.protocol}//127.0.0.1:${hostCtx.webServer.port}`;
+    // 上游只提供 loopback 端口（dsh-web-app 的 localWebUrl 口径就是 http://127.0.0.1:<port>）；
+    // 不要臆造 `webServer.protocol` 之类的字段（不存在 → `Invalid URL`）。
+    const port = hostCtx.webServer.port;
+    if (!Number.isInteger(port) || port <= 0) {
+      const diagnostic = `webServer.port 非法：${String(port)}`;
+      log(`host: ${diagnostic}`);
+      writeReady({ phase: 'failed', diagnostic, shims: shims.map((s) => s.marker) });
+      return;
+    }
+    const origin = `http://127.0.0.1:${String(port)}`;
     const url = hostCtx.connection.authenticatedUrl(origin);
     const token = new URL(url).searchParams.get('token') || '';
     if (token === '') {

@@ -57,6 +57,12 @@
         timeoutMs: 120000
         shellPath: /system/bin/sh
 
+    # 目录选择器的客户端面：上游 directory-picker-auto 会动态挂载
+    # backend+surface 这一对；我们把 host 面换成 workspace-picker 后，必须显式
+    # 钉住 browse 的客户端面，否则「选择工作区」按钮没有 UI 可渲染（点击无反应）。
+    - id: directory-picker-browse-client
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
+
     # 四主目录工作区选择（host 面 + client 面）
     # 注意：browse 与 workspace-picker 都注册 ctx.directoryPicker，同层插入会触发 cordis 的
     # 重复服务错误 ⇒ browse 由 workspace-picker 在隔离作用域内自挂。

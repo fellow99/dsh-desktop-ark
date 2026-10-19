@@ -47,13 +47,30 @@
 |---|---|---|---|
 | 上游零补丁 | `node scripts/verify-upstream.mjs` | ✅ 通过（tag / clean / patch ids / profile / bundle） | 构建日志 |
 | 载荷同步 | `node scripts/sync-payload.mjs` | ✅ 9 files / 26,074 bytes | `resfile/dsh-payload/dsh.version` |
-| Node 侧自检 | `NODE_BRIDGE_PAYLOAD_ROOT=build/selfcheck node payload/selfcheck.js` | ✅ 7/7（S1–S5、目录、ready） | 终端输出 |
+| Node 侧自检 | `NODE_BRIDGE_PAYLOAD_ROOT=<dir> node --expose-internals payload/selfcheck.js` | ✅ 9/9（S1–S6、目录、ready） | 终端输出 |
 | HAP 构建 | `hvigorw assembleHap --mode module -p product=default -p buildMode=debug` | ✅ BUILD SUCCESSFUL | `entry-default-unsigned.hap`（**44 MB**，含 libnode.so） |
 | 运行时投放 | `provision.mjs --check` / `--out entry/libs/arm64-v8a --sdk <sdk>` | ✅ 七项门禁全过；SHA-256 命中 | `entry/libs/arm64-v8a/{libnode.so,libc++_shared.so}` |
 | 代码评审 | `requesting-code-review` + `receiving-code-review` | 1 Critical + 7 Important 已修 | `logs/20261018-1/REVIEW_REPORT.md` |
 | 未签名构建 | 无 `signing.*.local.json` / 环境变量 | ✅ 产出未签名包（预期） | 构建日志 |
 
-**未验证（需真机 + 运行时二进制）**：G1 loopback、G3 sh 哨兵、G4 JIT ACL、G5 resfile 自解包、G6 pnpm in worker、G7 图像桥、G9 addon、G10 用户目录。
+
+## 三之二、真机调试证据（2026-10-19，HAD-W32 / API 26）
+
+完整记录见 `docs/010-真机调试记录.md`。要点：
+
+| 检查 | 判据 | 结果 |
+|---|---|---|
+| 签名装机 | `hdc install -r entry-default-signed.hap` | ✅ 安装成功（DevEco 生成的 debug profile） |
+| G1 ArkWeb → loopback | 应用内渲染真实 DSH UI；`hdc fport` 复验 `303 → 200 / 36,988 B` | ✅ |
+| G2 `node:sqlite` + FTS5 | 设备 `app.log`：`available=true fts5=true` | ✅ |
+| G5 resfile 自解包 + sha | `tar-extract: 15124 files`；二次启动 marker 复用 | ✅ |
+| G4 JIT（ACL） | 无 `--jitless` 不 SIGTRAP，服务正常起 | ✅ |
+| 垫片 S6（`node-addon-require-builtin`） | `node-addon-require-builtin: installed=true` | ✅（新增） |
+| 工作区选择器 + 对话 | RPC 修复后未复验（设备换成 phone 机型，装机被拒） | ⬜ |
+
+**已取证（2026-10-19，真机 HAD-W32）**：G1 loopback、G2 `node:sqlite`+FTS5、G4 JIT ACL、G5 resfile 自解包 —— 见上「三之二」与 `docs/010-真机调试记录.md`。
+
+**仍未验证**：G3 sh 哨兵、G6 pnpm in worker、G7 图像桥、G9 addon、G10 用户目录，以及工作区选择器与对话的端到端（设备侧未复验）。
 
 ---
 
@@ -61,7 +78,7 @@
 
 | 缺口 | 归属 | 建议需求编号 |
 |---|---|---|
-| `@dsh-ohos/*` 8 个 seam 插件未实现 | `105`/`106` | `001-adapters` |
+| `@dsh-ohos/*` seam 插件已落地 10 个包（本轮补 S6 与 picker 自实现），真机端到端仍待复验 | `104`/`106` | `001-adapters`（复验） |
 | `/_ohos/facts` 端点 | `107` | `002-diagnostics` |
 | 双发行线（standard / jitless） | `108` | `003-release` |
 | 真实 dsh 载荷装配（pnpm deploy + 裁剪） | `102` | `004-payload` |

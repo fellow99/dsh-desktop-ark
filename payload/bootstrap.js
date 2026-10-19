@@ -79,6 +79,10 @@ function installShims() {
   shims.push(fsLink.install(log));
   const fsSymlink = require('./shims/fs-symlink.js');
   shims.push(fsSymlink.install(log));
+  // S6：app-boot 用原生 addon 读 Node 内部模块；OHOS 无该 addon 的预编译二进制，
+  // 装配期已把包替换为纯 JS 实现（依赖 --expose-internals）。这里只测量并如实上报。
+  const requireBuiltin = require('./shims/require-builtin.js');
+  shims.push(requireBuiltin.install(log));
   return shims;
 }
 

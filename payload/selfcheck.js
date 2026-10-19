@@ -42,6 +42,11 @@ function checkShims() {
   const sqliteProbe = sqlite.install(noop);
   // G2 未过不算失败：它是"事实"，由发布方决定是否启用会话搜索。
   record('probe.node:sqlite', true, `available=${sqliteProbe.available} fts5=${sqliteProbe.fts5}`);
+
+  // S6：node-addon-require-builtin 的纯 JS 替身必须能读到 Node 内部模块（依赖 --expose-internals）。
+  const requireBuiltin = require('./shims/require-builtin.js');
+  const requireBuiltinProbe = requireBuiltin.install(noop);
+  record('shim.require-builtin', requireBuiltinProbe.installed === true, requireBuiltinProbe.detail);
 }
 
 function checkDirs() {

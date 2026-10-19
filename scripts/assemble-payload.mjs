@@ -220,8 +220,10 @@ const PRUNE_DIRS = new Set([
   'benchmarks',
 ]);
 const PRUNE_FILE_EXT = ['.map', '.ts', '.tsx', '.tsbuildinfo', '.md', '.markdown'];
-const FOREIGN_PKG = /-(win32|win|darwin|mac|linux|android)-(x64|ia32|arm64|arm|universal)$/;
-const PLATFORM_DIR = /^(win32|win|darwin|mac|linux|android|freebsd)-(x64|ia32|arm64|arm|universal)$/;
+// 尾部 ABI 后缀（-msvc / -gnu / -musl）同样是别的平台；漏判会把 win32 预编译二进制打进包。
+const ABI_SUFFIX = '(?:-(?:msvc|gnu|musl))?';
+const FOREIGN_PKG = new RegExp(`-(win32|win|darwin|mac|linux|android)-(x64|ia32|arm64|arm|universal)${ABI_SUFFIX}$`);
+const PLATFORM_DIR = new RegExp(`^(win32|win|darwin|mac|linux|android|freebsd)-(x64|ia32|arm64|arm|universal)${ABI_SUFFIX}$`);
 
 function prunePayload(stage) {
   const nodeModules = resolve(stage, 'node_modules');
@@ -447,6 +449,55 @@ function adoptTree(source) {
   return target;
 }
 
+/**
+ * 垫片 S6：把上游 `node-addon-require-builtin`（原生 NAPI addon，无 OHOS 目标）
+ * 替换为纯 JS 实现——`payload/shims/require-builtin.js`。
+ *
+ * 依据：该 addon 只提供"读 Node 内部模块"的能力，运行时带 `--expose-internals` 时
+ * `require('internal/…')` 等价可得（OHOS 运行时 v24.2.0 实测可用）。
+ * 上游包版本记进 `package.json` 的 `upstreamVersion`，便于升级时对账。
+ */
+function installRequireBuiltinShim(stage) {
+  const shimSource = resolve(ROOT, 'payload/shims/require-builtin.js');
+  if (!existsSync(shimSource)) fail(2, `缺少垫片源码：${shimSource}`);
+  const dest = resolve(stage, 'node_modules/node-addon-require-builtin');
+  if (!existsSync(dest)) {
+    fail(1, `载荷里没有 node-addon-require-builtin：${dest}`, '检查 deploy 是否完整（app-boot 依赖它）');
+  }
+  let upstreamVersion = '';
+  try {
+    upstreamVersion = String(JSON.parse(readFileSync(resolve(dest, 'package.json'), 'utf8')).version ?? '');
+  } catch {
+    upstreamVersion = '';
+  }
+  rmSync(dest, { recursive: true, force: true });
+  mkdirSync(resolve(dest, 'lib'), { recursive: true });
+  writeFileSync(
+    resolve(dest, 'package.json'),
+    `${JSON.stringify(
+      {
+        name: 'node-addon-require-builtin',
+        version: upstreamVersion === '' ? '0.1.9' : upstreamVersion,
+        type: 'commonjs',
+        description: 'OHOS shim S6: pure JS replacement for the native require-builtin addon (needs --expose-internals).',
+        main: 'lib/index.js',
+        exports: {
+          '.': { import: './lib/index.js', require: './lib/index.js', default: './lib/index.js' },
+          './package.json': './package.json',
+        },
+        license: 'MIT',
+        dshOhosShim: 'S6',
+        upstreamVersion,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  cpSync(shimSource, resolve(dest, 'lib/index.js'));
+  log(`垫片 S6：node-addon-require-builtin → 纯 JS（upstreamVersion=${upstreamVersion || 'unknown'}）`);
+  return dest;
+}
+
 function overlay(stage) {
   const profileDest = resolve(stage, 'profiles/ohos');
   rmSync(profileDest, { recursive: true, force: true });
@@ -460,6 +511,8 @@ function overlay(stage) {
 
   const plugins = collectOhosPackages(stage);
   log(`seam 插件已注入：${plugins.length} 个（${plugins.join(', ')}）`);
+
+  installRequireBuiltinShim(stage);
 }
 
 function assertStage(stage) {

@@ -113,6 +113,9 @@ export class DshRuntime {
         cwd: Constants.workspaceRoot(context),
         homeDir: context.filesDir,
         logPath: Constants.payloadRoot(context) + '/node.log',
+        // --expose-internals：垫片 S6 靠它替代无 OHOS 目标的 node-addon-require-builtin
+        // （app-boot 的 profile 解析要读 internal/modules/*）。缺它 ⇒ Host 启动即失败。
+        flags: '--no-verify-heap --expose-internals',
         jitless: false,
         env: {
           DSH_OHOS_HOME: Constants.dshHome(context),
