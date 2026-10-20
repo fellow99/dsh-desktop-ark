@@ -60,7 +60,8 @@ await test('writableRoots: read-only is empty, workspace-write derives workspace
 
 await test('isPathWritable: mode semantics and containment', () => {
   const policy = { mode: 'workspace-write', workspaceRoot: workspace }
-  assert.equal(sandbox.isPathWritable(join(workspace, 'a.txt'), policy), true)
+  // Windows 的 mkdtemp 会给出 8.3 短名（ADMINI~1），而 roots 已 realpath 成长名
+  assert.equal(sandbox.isPathWritable(join(sandbox.canonicalPath(workspace), 'a.txt'), policy), true)
   assert.equal(sandbox.isPathWritable(join(homedir(), 'dsh-ohos-outside-root'), policy), false, 'outside the derived roots')
   assert.equal(sandbox.isPathWritable(join(workspace, 'a.txt'), { mode: 'read-only', workspaceRoot: workspace }), false)
   assert.equal(sandbox.isPathWritable('/anything', { mode: 'danger-full-access', workspaceRoot: workspace }), true)
@@ -82,7 +83,7 @@ await test('confine(): argv unchanged, honest non-enforcement facts', async () =
   assert.equal(confined.workspaceRoot, sandbox.canonicalPath(workspace))
   assert.equal(provider.capabilities().sandbox, 'none')
   assert.equal(provider.capabilities().kernelIsolation, false)
-  assert.equal(provider.isPathWritable(join(workspace, 'x'), policy), true)
+  assert.equal(provider.isPathWritable(join(sandbox.canonicalPath(workspace), 'x'), policy), true)
   await assert.rejects(() => provider.confine([], policy), /non-empty argv/)
 })
 

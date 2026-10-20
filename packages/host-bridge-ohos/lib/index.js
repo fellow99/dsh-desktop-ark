@@ -388,10 +388,42 @@ export class HostBridge {
           },
         )
       }
-      return { kind: 'done', body }
+      return { kind: 'done', body: unwrapMailboxEnvelope(body) }
     }
     return undefined
   }
+}
+
+/**
+ * Unwrap the mailbox success envelope.
+ *
+ * ArkTS `HostBridge.mailboxSettle()` 写成功结果时固定是
+ * `{"ok":true,"result":"<handler 返回的 JSON 字符串>"}`（见 ohos-node-bridge
+ * `HostBridge.ets` 的 `mailboxSettle`）；handler 的**结构化载荷**在 `result` 里，
+ * 而且是**二次编码的字符串**。
+ *
+ * 不解包时所有消费方都只能看到 `{ok,result}`：`perm.check.granted` 恒为 undefined
+ * （曾被误记为“平台假阴性”）、`perm.request.authResults` 恒为空（曾被误记为
+ * “平台不应答”）、`image.normalize.data` 恒为 undefined（图片准入直接判 INVALID_IMAGE）。
+ *
+ * 规则保守：只有「ok===true 且 result 是字符串」才尝试解析；解析失败或结果不是对象
+ * 时保持原样（不把合法业务字段吞掉）。
+ * @param {Record<string, unknown>} body
+ * @returns {Record<string, unknown>}
+ */
+function unwrapMailboxEnvelope(body) {
+  if (body === null || typeof body !== 'object') return body
+  const result = body.result
+  if (body.ok === true && typeof result === 'string' && result !== '') {
+    try {
+      const inner = JSON.parse(result)
+      if (inner !== null && typeof inner === 'object') return inner
+    } catch {
+      /* 不是 JSON：保持原样 */
+    }
+  }
+  if (body.ok === true && result !== null && typeof result === 'object') return result
+  return body
 }
 
 /** Shared instance used by plugin packages. */

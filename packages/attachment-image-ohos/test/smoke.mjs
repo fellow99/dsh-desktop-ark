@@ -217,6 +217,14 @@ await test('toBuffer: bridge request shape, resolveWithObject info', async () =>
   assert.equal(Buffer.from(bridge.calls[0].args.data, 'base64').subarray(1, 4).toString(), 'PNG')
 })
 
+await test('raw(): forces a host decode probe and passes raw:true', async () => {
+  bridge.calls.length = 0
+  const buffer = await sharpModule.default(png(2, 2)).raw().toBuffer()
+  assert.ok(Buffer.isBuffer(buffer))
+  assert.equal(bridge.calls.length, 1)
+  assert.equal(bridge.calls[0].args.raw, true)
+})
+
 await test('toBuffer: bridge failure and a data-less response both throw', async () => {
   bridge.state.fail = new bridge.HostBridgeError('host-rejected', 'host-bridge: image.normalize failed [not-implemented]: P2', {
     hostError: 'not-implemented',

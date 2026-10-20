@@ -26,7 +26,8 @@
 | 能力注册（14 个冻结名）与错误信封 | implemented |
 | 信箱扫描、取走（改名）、串行分发、结果回写、心跳、陈旧回收 | implemented |
 | 运行时事实、日志、权限查询/申请、应用信息页、外部打开 | implemented |
-| 目录选择（3 项）、通知、剪贴板读图/写文本、图像规范化、常亮（8 项） | **not-implemented**（占位） |
+| 目录选择（3 项）、通知、剪贴板读图/写文本、常亮（7 项） | **not-implemented**（占位） |
+| 图像规范化 `image.normalize`（ImageKit 解码/缩放/编码） | **implemented**（2026-10-20；真机图片对话通过） |
 | 运行时事实中的「能力状态」字段 | **not-implemented**（字段缺失） |
 | 工作区内文件的外部打开 | **not-implemented**（只放行 https） |
 | 仓库内 Node 侧能力调用方 | **not-implemented**（无任何调用点） |

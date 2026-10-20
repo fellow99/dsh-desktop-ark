@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyFlockShim, applySharpShim, applyAttachmentDurabilityPatch } from './lib/payload-shims.mjs';
 import { gzipSync } from 'node:zlib';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -25,6 +26,15 @@ if (!existsSync(STAGE)) {
 function fail(message) {
   console.error(`[package-payload] ${message}`);
   process.exit(1);
+}
+
+// 物化期垫片必须在归档之前落到 stage 里（S3：flock 单进程替身）。
+try {
+  applyFlockShim(STAGE, (line) => console.log(`[package-payload] ${line}`));
+  applySharpShim(STAGE, (line) => console.log(`[package-payload] ${line}`));
+  applyAttachmentDurabilityPatch(STAGE, (line) => console.log(`[package-payload] ${line}`));
+} catch (error) {
+  fail(`垫片安装失败：${error instanceof Error ? error.message : String(error)}`);
 }
 
 /** 固定 builtAt 用（默认取载荷树最新 mtime，保证重跑同输入同首行）。 */

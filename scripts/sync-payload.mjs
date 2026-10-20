@@ -10,7 +10,7 @@
  * 单一事实源是 `payload/`；resfile 里的是构建产物（gitignored）。
  */
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,6 +40,10 @@ if (!existsSync(SRC)) {
 // 1) 先保存已有归档与版本（如果有）
 const keptArchive = existsSync(ARCHIVE) ? readFileSync(ARCHIVE) : null;
 const keptVersion = existsSync(VERSION) ? readFileSync(VERSION) : null;
+// 归档的 mtime 是 package-payload「最新即跳过」判据的一部分：回写内容时必须一并恢复，
+// 否则这次 writeFileSync 会把 mtime 刷新成 now，让后续重打判断永远为「已是最新」（实测踩到：
+// 载荷里换了 flock 垫片，但归档仍是旧的）。
+const keptArchiveStat = keptArchive !== null ? statSync(ARCHIVE) : null;
 
 // 2) 同步脚本
 rmSync(DEST, { recursive: true, force: true });
@@ -49,6 +53,9 @@ cpSync(SRC, DEST, { recursive: true });
 // 3) 恢复归档（连同版本），保证 sha 对账口径一致
 if (keptArchive !== null) {
   writeFileSync(ARCHIVE, keptArchive);
+  if (keptArchiveStat !== null) {
+    utimesSync(ARCHIVE, keptArchiveStat.atime, keptArchiveStat.mtime);
+  }
   if (keptVersion !== null) {
     writeFileSync(VERSION, keptVersion);
   }

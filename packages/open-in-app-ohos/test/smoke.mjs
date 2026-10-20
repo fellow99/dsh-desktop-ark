@@ -13,7 +13,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { registerHooks } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -122,7 +122,7 @@ await test('classifyTarget: https allowed, other schemes/relative/outside reject
   assert.equal(plugin.classifyTarget('relative/file.txt', workspace).kind, 'invalid')
   assert.equal(plugin.classifyTarget('', workspace).kind, 'invalid')
   assert.equal(plugin.classifyTarget(join(workspace, '..', 'escape.txt'), workspace).kind, 'invalid')
-  assert.deepEqual(plugin.classifyTarget(insideFile, workspace), { kind: 'path', path: insideFile })
+  assert.deepEqual(plugin.classifyTarget(insideFile, workspace), { kind: 'path', path: realpathSync.native(insideFile) })
   const savedWorkspace = process.env.DSH_OHOS_WORKSPACE
   delete process.env.DSH_OHOS_WORKSPACE
   try {
@@ -192,7 +192,8 @@ await test('POST /open-in-app/open: 404 for a missing workspace file', async () 
   const response = await call('exact:/open-in-app/open', makeRequest({
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ app: 'system', path: join(workspace, 'missing.txt') }),
+    // workspace 可能是 8.3 短名；路由按 canonical 路径做围栏判断 ⇒ 用 realpath 构造
+    body: JSON.stringify({ app: 'system', path: join(realpathSync.native(workspace), 'missing.txt') }),
   }))
   assert.equal(response.statusCode, 404)
 })
@@ -209,7 +210,7 @@ await test('POST /open-in-app/open: 200 + shell.openExternal with a file: URI', 
   assert.deepEqual(JSON.parse(response.body), { ok: true })
   assert.equal(bridge.calls.length, 1)
   assert.equal(bridge.calls[0].name, 'shell.openExternal')
-  assert.equal(bridge.calls[0].args.uri, pathToFileURL(insideFile).href)
+  assert.equal(bridge.calls[0].args.uri, pathToFileURL(realpathSync.native(insideFile)).href)
 })
 
 await test('POST /open-in-app/open: https target reaches the bridge unchanged', async () => {

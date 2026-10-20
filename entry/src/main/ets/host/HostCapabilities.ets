@@ -1,5 +1,7 @@
 import { abilityAccessCtrl, bundleManager, common, PermissionRequestResult, Permissions, Want } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
+import { image } from '@kit.ImageKit';
+import { util } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { HostBridge } from '@fellow99/node-bridge';
 import { Constants } from '../common/Constants';
@@ -15,6 +17,30 @@ interface NamesArgs {
 
 interface UriArgs {
   uri?: string;
+}
+
+/** `image.normalize` 入参（与 `packages/attachment-image-ohos` 的调用面一致） */
+interface ImageNormalizeArgs {
+  data?: string;
+  format?: string;
+  quality?: number;
+  rotate?: boolean;
+  colourspace?: string;
+  width?: number;
+  height?: number;
+  fit?: string;
+  withoutEnlargement?: boolean;
+  sourceFormat?: string;
+}
+
+/** `image.normalize` 成功信封（调用方要 base64 + 实际尺寸） */
+interface ImageNormalizeResult {
+  ok: boolean;
+  data: string;
+  format: string;
+  width: number;
+  height: number;
+  channels: number;
 }
 
 interface LogArgs {
@@ -112,6 +138,8 @@ export class HostCapabilities {
     host.register('perm.request', (args: string): Promise<string> => HostCapabilities.requestPermission(context, args));
     host.register('perm.openAppInfo', (_args: string): Promise<string> => HostCapabilities.openAppInfo(context));
     host.register('shell.openExternal', (args: string): Promise<string> => HostCapabilities.openExternal(context, args));
+    // 图像规范化（S4 的像素后端）：SharpPipeline 的每个像素操作都走这里。
+    host.register('image.normalize', (args: string): Promise<string> => HostCapabilities.normalizeImage(context, args));
 
     // 已注册但未实现：显式返回 not-implemented（宪法 C2）。
     HostCapabilities.notImplemented(host, 'fs.pickFolder', 'workspace-picker 将经 directoryPicker seam 提供；本轮请用 browse 后端');
@@ -120,8 +148,147 @@ export class HostCapabilities {
     HostCapabilities.notImplemented(host, 'notify.show', '通知桥将在 P2 接入 NotificationKit');
     HostCapabilities.notImplemented(host, 'clipboard.readImage', '剪贴板图片将在 P2 接入 pasteboard');
     HostCapabilities.notImplemented(host, 'clipboard.writeText', '剪贴板文本将在 P2 接入 pasteboard');
-    HostCapabilities.notImplemented(host, 'image.normalize', '图像桥将在 P2 接入 ImageKit');
     HostCapabilities.notImplemented(host, 'power.keepAwake', '长时任务已由 backgroundModes 提供，运行锁将在 P2 接入');
+  }
+
+  /**
+   * 图像规范化：base64 进 → 解码/缩放/编码 → base64 出。
+   *
+   * 契约与 `packages/attachment-image-ohos`（S4 的 sharp 替身）一致：
+   * `{data, format, quality, width?, height?, withoutEnlargement?}` →
+   * `{ok:true, data, format, width, height, channels}`。
+   *
+   * 像素操作全部在 ArkTS 侧（`@kit.ImageKit`）：jitless 下 WASM 不可用，纯 JS 解码大图
+   * 代价过高；设备原生解码既快又能复用系统 ImageKit。
+   */
+  private static async normalizeImage(context: common.UIAbilityContext, args: string): Promise<string> {
+    let source: image.ImageSource | null = null;
+    let pixelMap: image.PixelMap | null = null;
+    let packer: image.ImagePacker | null = null;
+    try {
+      const parsed: ImageNormalizeArgs = JSON.parse(args) as ImageNormalizeArgs;
+      HostCapabilities.appLog(context, 'image.normalize in: ' + args.length + 'B format=' + String(parsed.format)
+        + ' w=' + String(parsed.width) + ' h=' + String(parsed.height)
+        + ' noEnlarge=' + String(parsed.withoutEnlargement));
+      if (parsed.data === undefined || parsed.data === '') {
+        const bad: CapabilityError = { ok: false, error: 'bad-args', hint: 'image.normalize 需要 data(base64)' };
+        return JSON.stringify(bad);
+      }
+      const helper: util.Base64Helper = new util.Base64Helper();
+      const bytes: Uint8Array = helper.decodeSync(parsed.data);
+      const buffer: ArrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+      source = image.createImageSource(buffer);
+      const info: image.ImageInfo = await source.getImageInfo();
+      const target: image.Size = HostCapabilities.fitInside(info.size, parsed);
+      const decoding: image.DecodingOptions = { desiredSize: target, editable: false };
+      pixelMap = await source.createPixelMap(decoding);
+      HostCapabilities.appLog(context, 'image.normalize decode: src=' + info.size.width + 'x' + info.size.height
+        + ' target=' + target.width + 'x' + target.height);
+
+      const requested: string = HostCapabilities.packFormat(parsed.format);
+      const quality: number = HostCapabilities.clampQuality(parsed.quality);
+      packer = image.createImagePacker();
+      let out: ArrayBuffer;
+      let usedFormat: string = requested;
+      try {
+        const option: image.PackingOption = { format: requested, quality: quality };
+        out = await packer.packing(pixelMap, option);
+      } catch (encodeError) {
+        // 部分设备不支持 WebP/PNG 编码 ⇒ 退 JPEG，并**如实**回报实际格式（不伪装）。
+        usedFormat = 'image/jpeg';
+        const fallback: image.PackingOption = { format: usedFormat, quality: quality };
+        out = await packer.packing(pixelMap, fallback);
+      }
+      const encoded: string = helper.encodeToStringSync(new Uint8Array(out));
+      HostCapabilities.appLog(context, 'image.normalize out: ' + out.byteLength + 'B format=' + usedFormat);
+      const result: ImageNormalizeResult = {
+        ok: true,
+        data: encoded,
+        format: HostCapabilities.formatName(usedFormat),
+        width: target.width,
+        height: target.height,
+        channels: 4
+      };
+      return JSON.stringify(result);
+    } catch (error) {
+      HostCapabilities.appLog(context, 'image.normalize failed: ' + (error instanceof Error ? error.message : String(error)));
+      return HostCapabilities.internal('image.normalize', error);
+    } finally {
+      if (pixelMap !== null) {
+        try { await pixelMap.release(); } catch (e) { }
+      }
+      if (source !== null) {
+        try { await source.release(); } catch (e) { }
+      }
+      if (packer !== null) {
+        try { await packer.release(); } catch (e) { }
+      }
+    }
+  }
+
+  /** `fit: 'inside'` + `withoutEnlargement`（与 sharp 的默认语义一致）。 */
+  private static fitInside(size: image.Size, args: ImageNormalizeArgs): image.Size {
+    let targetW: number = size.width;
+    let targetH: number = size.height;
+    const w: number | undefined = args.width;
+    const h: number | undefined = args.height;
+    const hasW: boolean = w !== undefined && w > 0;
+    const hasH: boolean = h !== undefined && h > 0;
+    if (hasW || hasH) {
+      const rw: number = hasW ? (w as number) / size.width : Number.POSITIVE_INFINITY;
+      const rh: number = hasH ? (h as number) / size.height : Number.POSITIVE_INFINITY;
+      const ratio: number = Math.min(rw, rh);
+      const noEnlarge: boolean = args.withoutEnlargement !== false;
+      const scale: number = noEnlarge ? Math.min(1, ratio) : ratio;
+      if (Number.isFinite(scale)) {
+        targetW = Math.max(1, Math.round(size.width * scale));
+        targetH = Math.max(1, Math.round(size.height * scale));
+      }
+    }
+    const result: image.Size = { width: targetW, height: targetH };
+    return result;
+  }
+
+  private static packFormat(name: string | undefined): string {
+    if (name === 'png') {
+      return 'image/png';
+    }
+    if (name === 'webp') {
+      return 'image/webp';
+    }
+    return 'image/jpeg';
+  }
+
+  private static formatName(mime: string): string {
+    if (mime === 'image/png') {
+      return 'png';
+    }
+    if (mime === 'image/webp') {
+      return 'webp';
+    }
+    return 'jpeg';
+  }
+
+  private static clampQuality(value: number | undefined): number {
+    if (value === undefined || !Number.isFinite(value)) {
+      return 85;
+    }
+    return Math.max(1, Math.min(100, Math.round(value)));
+  }
+
+  /** 追加一行到 `app.log`（与 Node 侧同一份文件；诊断用，失败不影响业务）。 */
+  private static appLog(context: common.UIAbilityContext, line: string): void {
+    try {
+      const path: string = Constants.appLogPath(context);
+      const file = fs.openSync(path, fs.OpenMode.CREATE | fs.OpenMode.APPEND | fs.OpenMode.WRITE_ONLY);
+      try {
+        fs.writeSync(file.fd, new Date().toISOString() + ' HOST ' + line + String.fromCharCode(10));
+      } finally {
+        fs.closeSync(file);
+      }
+    } catch (e) {
+      // 诊断写入失败不能影响能力调用
+    }
   }
 
   private static notImplemented(host: HostBridge, name: string, hint: string): void {
@@ -193,11 +360,12 @@ export class HostCapabilities {
 
   private static capabilities(): CapabilityStatus[] {
     const implemented: string[] = [
-      'runtime.facts', 'log.hilog', 'perm.check', 'perm.request', 'perm.openAppInfo', 'shell.openExternal'
+      'runtime.facts', 'log.hilog', 'perm.check', 'perm.request', 'perm.openAppInfo', 'shell.openExternal',
+      'image.normalize'
     ];
     const pending: string[] = [
       'fs.pickFolder', 'fs.pickFiles', 'fs.saveFile', 'notify.show',
-      'clipboard.readImage', 'clipboard.writeText', 'image.normalize', 'power.keepAwake'
+      'clipboard.readImage', 'clipboard.writeText', 'power.keepAwake'
     ];
     const result: CapabilityStatus[] = [];
     for (let i = 0; i < implemented.length; i++) {

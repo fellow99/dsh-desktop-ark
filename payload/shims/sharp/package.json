@@ -1,0 +1,9 @@
+{
+  "name": "sharp",
+  "version": "0.0.0-ohos-s4",
+  "type": "commonjs",
+  "main": "index.cjs",
+  "description": "OHOS shim S4: pure-JS sharp replacement delegating pixel work to the host bridge image.normalize.",
+  "license": "MIT",
+  "dshOhosShim": "S4"
+}

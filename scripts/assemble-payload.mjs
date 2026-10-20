@@ -33,6 +33,7 @@ import {
 } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyFlockShim, applySharpShim, applyAttachmentDurabilityPatch } from './lib/payload-shims.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const DSH_ROOT = resolve(ROOT, '../deepseek-harness');
@@ -517,6 +518,21 @@ function overlay(stage) {
   log(`seam 插件已注入：${plugins.length} 个（${plugins.join(', ')}）`);
 
   installRequireBuiltinShim(stage);
+  try {
+    applyFlockShim(stage, log);
+  } catch (error) {
+    fail(1, `垫片 S3 安装失败：${error instanceof Error ? error.message : String(error)}`);
+  }
+  try {
+    applySharpShim(stage, log);
+  } catch (error) {
+    fail(1, `垫片 S4 安装失败：${error instanceof Error ? error.message : String(error)}`);
+  }
+  try {
+    applyAttachmentDurabilityPatch(stage, log);
+  } catch (error) {
+    fail(1, `补丁 S5 安装失败：${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function assertStage(stage) {
