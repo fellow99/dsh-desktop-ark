@@ -338,6 +338,12 @@ export class OhosDirectoryPicker extends Service {
     } catch (error) {
       const failure = new DirectoryPickerError('directory-unreadable', target, `cannot list ${target}: ${messageOf(error)}`)
       failure.unavailable = true
+      // 「设备上根本没这个目录」与「有目录但没授权」必须分开（姊妹工程在 TV 上被 403 误导过）：
+      // ENOENT/ENOTDIR ⇒ missing；EACCES/EPERM ⇒ permissionRequired（不在这里申请权限）。
+      const code = error?.code
+      if (code === 'ENOENT' || code === 'ENOTDIR') failure.missing = true
+      if ((code === 'EACCES' || code === 'EPERM') && root.permission !== undefined) failure.permissionRequired = true
+      if (root.permission !== undefined) failure.permission = root.permission
       throw failure
     }
     if (!info.isDirectory()) {
@@ -388,54 +394,196 @@ export class OhosDirectoryPicker extends Service {
   }
 
   /**
+   * 探测一个根的**真实可读性**（以文件系统为准，不看权限 API 的返回值）。
+   *
+   * 为什么以 `readdir` 为准：`checkAccessTokenSync` 在本平台存在**已知假阴性** ——
+   * 授权成功后仍回 `-1`（姊妹工程 `perm.check` 的 hint 里记着这条；本工程 2026-10-20
+   * 真机复验：`atm dump` 为 `grantStatus=0`、`list()` 能列出真实条目，而同一时刻
+   * `perm.check` 仍报 `granted:false`）。权限 API 只用于归因与填空，
+   * 「这个目录现在能不能读」只有读一次才知道。
+   *
+   * @param {Record<string, any>} root
+   * @returns {Promise<'readable'|'denied'|'missing'|'unknown'>}
+   */
+  async probeAccess(root) {
+    try {
+      await readdir(root.path)
+      return 'readable'
+    } catch (error) {
+      const code = error?.code
+      // 目录不存在（设备没有用户主目录体系，如精简/非标准 OpenHarmony）
+      // 与「存在但没授权」是两件事：授权成功也读不到不存在的路径（姊妹工程在 TV 上踩过）。
+      if (code === 'ENOENT' || code === 'ENOTDIR') return 'missing'
+      if (code === 'EACCES' || code === 'EPERM') return 'denied'
+      return 'unknown'
+    }
+  }
+
+  /**
+   * 授权对话框返回后，文件系统的生效**可能滞后**（真机实测：刚点完「允许」，
+   * 紧接着的一次 `readdir` 仍是 `EACCES`，几百毫秒后才通过）。
+   * 所以收尾探测要短轮询，而不是只探一次 —— 否则界面会误报「平台没生效」。
+   *
+   * @param {Record<string, any>} root
+   * @param {{ attempts?: number, intervalMs?: number }} [options]
+   * @returns {Promise<'readable'|'denied'|'missing'|'unknown'>}
+   */
+  async probeAccessSettled(root, options = {}) {
+    const attempts = Number.isInteger(options.attempts) && options.attempts > 0 ? options.attempts : 8
+    const intervalMs = Number.isFinite(options.intervalMs) ? options.intervalMs : 350
+    let last = await this.probeAccess(root)
+    for (let i = 1; i < attempts && last === 'denied'; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs))
+      last = await this.probeAccess(root)
+    }
+    return last
+  }
+
+  /**
    * 查一个 root 的权限状态（**只查不申请**）。
+   *
+   * 判定顺序：目录缺失 ⇒ 无需权限 ⇒ **真实可读（即已授权）** ⇒ 才去问权限 API。
+   * 最后一步只用于「不可读时给出归因」，不用于判定「已授权」（见 `probeAccess`）。
+   *
    * @param {string} rootId - `sandbox` / `documents` / `download`
-   * @returns {Promise<{ rootId: string, permission?: string, granted: boolean | null, detail: string }>}
-   *   `granted === null` 表示无法判定（宿主桥不可用或无权限要求），调用方不得当作已授权。
+   * @returns {Promise<{ rootId: string, permission?: string, granted: boolean | null, result: string, detail: string }>}
+   *   `granted === null` 表示无法判定（宿主桥不可用或目录缺失），调用方不得当作已授权。
    */
   async permission(rootId) {
     const root = this.roots.find((candidate) => candidate.id === rootId)
     if (root === undefined) {
-      return { rootId, granted: null, detail: `unknown root ${JSON.stringify(rootId)}` }
+      return { rootId, granted: null, result: 'unknown-root', detail: `unknown root ${JSON.stringify(rootId)}` }
     }
-    if (root.permission === undefined) return { rootId, granted: true, detail: 'no permission required' }
+    const access = await this.probeAccess(root)
+    if (access === 'missing') {
+      return { rootId, permission: root.permission, granted: null, result: 'missing', path: root.path, detail: `root path does not exist: ${root.path}` }
+    }
+    if (root.permission === undefined) {
+      return { rootId, granted: true, result: 'granted', detail: 'no permission required' }
+    }
+    if (access === 'readable') {
+      return { rootId, permission: root.permission, granted: true, result: 'granted', path: root.path, detail: 'readable' }
+    }
     try {
       const check = await invokeHost('perm.check', { name: root.permission }, { timeoutMs: 5_000 })
-      return { rootId, permission: root.permission, granted: check?.granted === true, detail: 'ok' }
+      const apiGranted = check?.granted === true
+      return {
+        rootId,
+        permission: root.permission,
+        granted: false,
+        result: apiGranted ? 'granted-unreadable' : 'not-granted',
+        path: root.path,
+        apiGranted,
+        detail: apiGranted
+          ? '权限 API 报已授权，但目录仍不可读（EACCES/EPERM）：可尝试重新授权，或重启应用后再试'
+          : access === 'denied'
+            ? 'directory not readable (EACCES): permission not granted'
+            : 'permission state undetermined (probe + perm.check both inconclusive)',
+      }
     } catch (bridgeError) {
       return {
         rootId,
         permission: root.permission,
         granted: null,
+        result: 'unavailable',
         detail: `permission gate unavailable: ${messageOf(bridgeError)}`,
       }
     }
   }
 
   /**
+   * 判断一个根目录在当前设备上是否存在（**只看存在性，不看权限**）。
+   * @param {Record<string, any>} root
+   * @returns {Promise<'present'|'missing'|'unknown'>}
+   */
+  async rootAvailability(root) {
+    if (root.kind === 'sandbox') return 'present'
+    const access = await this.probeAccess(root)
+    if (access === 'readable' || access === 'denied') return 'present'
+    return access === 'missing' ? 'missing' : 'unknown'
+  }
+
+  /**
    * 申请一个 root 的权限（用户显式触发；会弹系统授权窗）。
+   *
+   * 三条纪律：
+   * 1. **已经能读就不弹窗**（`perm.check` 的假阴性会让「已授权」看起来像未授权，
+   *    照它弹窗只会重复打扰用户）；
+   * 2. 平台可能**根本没有应答**（`authResults: []`；真机上 ATM 会记为
+   *    `It does not need to request permission` 并直接 return），所以判定必须以
+   *    「申请后再探一次目录」收尾，而不是以 `authResults` 收尾；
+   * 3. `0/-1/2` 与「空数组」四种情况分别如实上报，文案不合并。
+   *
    * @param {string} rootId
-   * @returns {Promise<{ rootId: string, permission?: string, granted: boolean, detail: string }>}
+   * @returns {Promise<{ rootId: string, permission?: string, granted: boolean, result: string, detail: string }>}
    */
   async requestPermission(rootId) {
     const root = this.roots.find((candidate) => candidate.id === rootId)
-    if (root === undefined) return { rootId, granted: false, detail: `unknown root ${JSON.stringify(rootId)}` }
-    if (root.permission === undefined) return { rootId, granted: true, detail: 'no permission required' }
-    try {
-      const check = await invokeHost('perm.check', { name: root.permission }, { timeoutMs: 5_000 })
-      if (check?.granted === true) {
-        return { rootId, permission: root.permission, granted: true, detail: 'already granted' }
-      }
-      const request = await invokeHost('perm.request', { names: [root.permission] }, { timeoutMs: USER_CHOICE_TIMEOUT_MS })
-      const granted = Array.isArray(request?.authResults) && request.authResults[0] === 0
+    if (root === undefined) {
+      return { rootId, granted: false, result: 'unknown-root', detail: `unknown root ${JSON.stringify(rootId)}` }
+    }
+    const before = await this.probeAccess(root)
+    if (before === 'missing') {
+      return { rootId, permission: root.permission, granted: false, result: 'missing', path: root.path, detail: `root path does not exist: ${root.path}` }
+    }
+    if (root.permission === undefined) return { rootId, granted: true, result: 'granted', detail: 'no permission required' }
+    if (before === 'readable') {
       return {
         rootId,
         permission: root.permission,
-        granted,
-        detail: granted ? 'granted' : `denied (authResults=${JSON.stringify(request?.authResults ?? [])})`,
+        granted: true,
+        result: 'granted',
+        authResult: null,
+        path: root.path,
+        detail: 'already readable: directory lists successfully, no system prompt needed',
+      }
+    }
+    try {
+      const request = await invokeHost('perm.request', { names: [root.permission] }, { timeoutMs: USER_CHOICE_TIMEOUT_MS })
+      const raw = Array.isArray(request?.authResults) ? request.authResults : []
+      const authResult = raw.length > 0 ? raw[0] : undefined
+      // 申请之后再探一次（短轮询：授权生效可能滞后几百毫秒）：这才是「现在能不能用」的唯一事实。
+      const after = await this.probeAccessSettled(root)
+      const readable = after === 'readable'
+      // SDK 语义（`security/PermissionRequestResult.d.ts`）：0=已授予、-1=未授予（用户拒绝）、2=请求无效。
+      const result = readable
+        ? 'granted'
+        : authResult === 0
+          ? 'granted-unreadable'
+          : authResult === -1
+            ? 'denied'
+            : authResult === 2
+              ? 'invalid'
+              : 'unknown'
+      return {
+        rootId,
+        permission: root.permission,
+        granted: readable,
+        result,
+        authResult: authResult ?? null,
+        authResults: raw,
+        path: root.path,
+        detail:
+          result === 'granted'
+            ? `granted: directory readable (authResults=${JSON.stringify(raw)})`
+            : result === 'granted-unreadable'
+              ? 'authResult=0（平台报已授予）但目录仍不可读：多为授权态与实际 token 不一致，重启应用后再试'
+              : result === 'denied'
+                ? 'denied by user (authResult=-1); 系统在"曾被拒绝/已撤销"后不再弹窗，只能去系统设置里手动开启'
+                : result === 'invalid'
+                  ? 'request void (authResult=2); 平台不受理该运行时请求（常见于手机形态或应用不在前台）'
+                  : `平台未受理本次申请（authResults=${JSON.stringify(raw)}，且目录仍不可读）：` +
+                    '该权限的 grantFlag 已带 SYSTEM_GRANT（安装期由签名 profile 的 acls 写入）而 grantStatus 仍为 -1，' +
+                    '系统既不弹窗也不授予。处置见 docs/ACL配置.md §5：复位授权态或重签 profile。',
       }
     } catch (bridgeError) {
-      return { rootId, permission: root.permission, granted: false, detail: `permission gate unavailable: ${messageOf(bridgeError)}` }
+      return {
+        rootId,
+        permission: root.permission,
+        granted: false,
+        result: 'unavailable',
+        detail: `permission gate unavailable: ${messageOf(bridgeError)}`,
+      }
     }
   }
 

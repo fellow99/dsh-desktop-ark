@@ -156,40 +156,70 @@ await test('list(): 无权限时不自动申请，只报 permissionRequired', as
   assert.equal(bridgeState.invocations.length, 0, 'list 路径不得触发 perm.request')
 })
 
-await test('permission(): 只查不申请，桥不可用时 granted=null（不假装已授权）', async () => {
+await test('permission(): 只查不申请；桥不可用且目录不可读时 granted=null（不假装已授权）', async () => {
   bridgeState.invocations.length = 0
   bridgeState.fail = true
   const service = new picker.OhosDirectoryPicker(fakeCtx(), config)
+  // 目录在测试环境里是真实存在的：要模拟「存在但没授权」，把探测结果钉成 denied。
+  service.probeAccess = async () => 'denied'
   const state = await service.permission('documents')
   assert.equal(state.granted, null)
   assert.match(state.detail, /unavailable/)
   assert.deepEqual(bridgeState.invocations.map((item) => item.name), ['perm.check'], '只调 perm.check')
 })
 
-await test('permission(): 已授权时 granted=true；sandbox 无权限要求', async () => {
+await test('permission(): 目录真实可读即视为已授权（不看 perm.check 的假阴性）', async () => {
+  bridgeState.fail = false
+  // 关键：权限 API 说「未授予」，但目录读得出来 —— 真机上就是这样（atm 为 0、check 为 -1）。
+  bridgeState.grantCheck = false
+  bridgeState.invocations.length = 0
+  const service = new picker.OhosDirectoryPicker(fakeCtx(), config)
+  const state = await service.permission('documents')
+  assert.equal(state.granted, true)
+  assert.equal(state.result, 'granted')
+  assert.equal(state.detail, 'readable')
+  assert.equal(bridgeState.invocations.length, 0, '可读时不得调用宿主桥')
+  assert.equal((await service.permission('sandbox')).granted, true)
+})
+
+await test('permission(): 不可读 + API 报已授予 ⇒ granted-unreadable（不谎称可用）', async () => {
   bridgeState.fail = false
   bridgeState.grantCheck = true
   bridgeState.invocations.length = 0
   const service = new picker.OhosDirectoryPicker(fakeCtx(), config)
-  assert.equal((await service.permission('documents')).granted, true)
-  assert.equal((await service.permission('sandbox')).granted, true)
+  service.probeAccess = async () => 'denied'
+  const state = await service.permission('documents')
+  assert.equal(state.granted, false)
+  assert.equal(state.result, 'granted-unreadable')
+  assert.equal(state.apiGranted, true)
+  assert.match(state.detail, /仍不可读/)
 })
 
-await test('requestPermission(): 显式申请走 perm.request，拒绝则 granted=false', async () => {
+await test('requestPermission(): 显式申请走 perm.request；可读时不再弹窗', async () => {
   bridgeState.fail = false
   bridgeState.grantCheck = false
   bridgeState.grantRequest = false
+  bridgeState.requestVoid = false
   bridgeState.invocations.length = 0
   const service = new picker.OhosDirectoryPicker(fakeCtx(), config)
+  service.probeAccess = async () => 'denied'
+  // 「生效滞后」的轮询另有专测（见下）；这里把收尾探测退化成单次，避免每个用例都等真实间隔。
+  service.probeAccessSettled = async () => service.probeAccess()
   const denied = await service.requestPermission('download')
   assert.equal(denied.granted, false)
-  assert.deepEqual(bridgeState.invocations.map((item) => item.name), ['perm.check', 'perm.request'])
+  assert.equal(denied.result, 'denied')
+  // 新版不再先问 perm.check：探测已给出「不可读」，直接申请（少一次桥往返）。
+  assert.deepEqual(bridgeState.invocations.map((item) => item.name), ['perm.request'])
 
-  bridgeState.grantRequest = true
-  const granted = await service.requestPermission('download')
-  assert.equal(granted.granted, true)
+  // 已经能读：不弹窗、不调桥。
+  bridgeState.invocations.length = 0
+  const readable = new picker.OhosDirectoryPicker(fakeCtx(), config)
+  readable.probeAccess = async () => 'readable'
+  const already = await readable.requestPermission('download')
+  assert.equal(already.granted, true)
+  assert.equal(already.detail.includes('already readable'), true)
+  assert.equal(bridgeState.invocations.length, 0)
 })
-
 await test('list(): missing user root is reported unavailable, never rebased', async () => {
   const service = new picker.OhosDirectoryPicker(fakeCtx(), { sandboxRoot: workspace, userRoot: join(userRoot, 'nope'), roots: ['documents'] })
   await assert.rejects(
@@ -363,6 +393,106 @@ await test('routes: list 失败时把 permissionRequired 透传给客户端', as
   assert.equal(body.ok, false)
   assert.equal(body.error.permissionRequired, true)
   assert.equal(body.error.permission, 'ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY')
+})
+
+await test('requestPermission(): 0/-1/2/空数组 四种应答分别映射（判定以目录可读为准）', async () => {
+  bridgeState.fail = false
+  bridgeState.grantCheck = false
+  bridgeState.requestVoid = false
+  bridgeState.emptyResults = false
+  const service = new picker.OhosDirectoryPicker(fakeCtx(), config)
+  // 探测序列：申请前 denied、申请后按用例切换（真机上「授权后立刻可读」就是这样发生的）。
+  const sequence = (...values) => {
+    let index = 0
+    service.probeAccess = async () => values[Math.min(index++, values.length - 1)]
+  }
+  // 轮询滞后另有专测；这里把收尾探测退化成单次，让用例只关心映射。
+  service.probeAccessSettled = async () => service.probeAccess()
+
+  // 0 + 授权后仍不可读 ⇒ granted-unreadable（不是「已授予」）
+  bridgeState.grantRequest = true
+  sequence('denied', 'denied')
+  const grantedButUnreadable = await service.requestPermission('documents')
+  assert.equal(grantedButUnreadable.granted, false)
+  assert.equal(grantedButUnreadable.result, 'granted-unreadable')
+  assert.equal(grantedButUnreadable.authResult, 0)
+  assert.match(grantedButUnreadable.detail, /仍不可读/)
+
+  // 0 + 授权后可读 ⇒ granted（真机成功形态）
+  sequence('denied', 'readable')
+  const granted = await service.requestPermission('documents')
+  assert.equal(granted.granted, true)
+  assert.equal(granted.result, 'granted')
+  assert.equal(granted.authResult, 0)
+  assert.match(granted.detail, /readable/)
+
+  bridgeState.grantRequest = false
+  sequence('denied', 'denied')
+  const denied = await service.requestPermission('documents')
+  assert.equal(denied.granted, false)
+  assert.equal(denied.result, 'denied')
+  assert.equal(denied.authResult, -1)
+  assert.match(denied.detail, /denied by user/)
+
+  bridgeState.requestVoid = true
+  sequence('denied', 'denied')
+  const invalid = await service.requestPermission('documents')
+  assert.equal(invalid.granted, false)
+  assert.equal(invalid.result, 'invalid')
+  assert.equal(invalid.authResult, 2)
+  assert.match(invalid.detail, /request void/)
+
+  // 空数组：平台根本没应答（真机 ATM 记 "It does not need to request permission"）
+  bridgeState.requestVoid = false
+  bridgeState.emptyResults = true
+  sequence('denied', 'denied')
+  const empty = await service.requestPermission('documents')
+  assert.equal(empty.granted, false)
+  assert.equal(empty.result, 'unknown')
+  assert.equal(empty.authResult, null)
+  assert.deepEqual(empty.authResults, [])
+  assert.match(empty.detail, /grantFlag/)
+
+  // 空数组但申请后目录变可读 ⇒ 依然算授予（应答缺失不能推翻事实）
+  sequence('denied', 'readable')
+  const emptyButReadable = await service.requestPermission('documents')
+  assert.equal(emptyButReadable.granted, true)
+  assert.equal(emptyButReadable.result, 'granted')
+  bridgeState.emptyResults = false
+})
+
+await test('probeAccessSettled(): 授权生效滞后（先 denied 后 readable）会被轮询吸收', async () => {
+  const service = new picker.OhosDirectoryPicker(fakeCtx(), config)
+  let calls = 0
+  service.probeAccess = async () => (++calls < 3 ? 'denied' : 'readable')
+  const settled = await service.probeAccessSettled(service.roots[1], { attempts: 5, intervalMs: 5 })
+  assert.equal(settled, 'readable')
+  assert.equal(calls, 3, '探到可读即停（不多探）')
+
+  // 一直不可读 ⇒ 不无限轮询，按上限收敛。
+  let deniedCalls = 0
+  service.probeAccess = async () => { deniedCalls += 1; return 'denied' }
+  assert.equal(await service.probeAccessSettled(service.roots[1], { attempts: 4, intervalMs: 5 }), 'denied')
+  assert.equal(deniedCalls, 4)
+})
+
+await test('permission(): 设备没有该目录时报 missing，而不是「未授权」', async () => {
+  bridgeState.fail = false
+  bridgeState.grantCheck = false
+  const missingUserRoot = join(mkdtempSync(join(tmpdir(), 'dsh-ohos-nouser-')), 'no-such-user')
+  const service = new picker.OhosDirectoryPicker(fakeCtx(), { sandboxRoot: workspace, userRoot: missingUserRoot, roots: ['documents'] })
+  const state = await service.permission('documents')
+  assert.equal(state.result, 'missing')
+  assert.equal(state.granted, null)
+  assert.match(state.detail, /does not exist/)
+  const request = await service.requestPermission('documents')
+  assert.equal(request.result, 'missing')
+  assert.equal(request.granted, false)
+
+  const listFailure = await service.list(join(missingUserRoot, 'Documents')).then(() => null, (error) => error)
+  assert.ok(listFailure !== null)
+  assert.equal(listFailure.missing, true)
+  assert.equal(listFailure.permissionRequired, undefined)
 })
 
 rmSync(workspace, { recursive: true, force: true })

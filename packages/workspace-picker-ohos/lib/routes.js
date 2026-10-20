@@ -91,6 +91,8 @@ function failurePayload(error) {
       path: typeof error?.path === 'string' ? error.path : '',
       permissionRequired: error?.permissionRequired === true,
       permission: typeof error?.permission === 'string' ? error.permission : '',
+      // 设备上没有该目录（与「没授权」不同）：客户端显示「目录不存在」，不给授权按钮。
+      missing: error?.missing === true,
     },
   }
 }
@@ -128,7 +130,13 @@ export function registerPickerRoutes(ctx, picker) {
           const roots = []
           for (const root of picker.rootsDescriptor()) {
             const state = await picker.permission(root.id)
-            roots.push({ ...root, granted: state.granted, permissionDetail: state.detail })
+            roots.push({
+              ...root,
+              granted: state.granted,
+              result: state.result,
+              missing: state.result === 'missing',
+              permissionDetail: state.detail,
+            })
           }
           sendJson(res, 200, { routes: PICKER_ROUTE_PREFIX, roots })
         },

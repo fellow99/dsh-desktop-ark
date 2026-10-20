@@ -39,8 +39,17 @@ const React = {
       hookSlots[index] = typeof next === 'function' ? next(hookSlots[index]) : next
     }]
   },
-  useEffect(fn) {
-    hookCursor++
+  // 真实 React 只在依赖变化时跑 effect；桩必须同样处理，否则每次重渲染都会把 UI 状态重置。
+  useEffect(fn, deps) {
+    const index = hookCursor++
+    const previous = hookSlots[index]
+    const changed =
+      previous === undefined ||
+      deps === undefined ||
+      deps.length !== previous.deps.length ||
+      deps.some((value, i) => !Object.is(value, previous.deps[i]))
+    if (!changed) return
+    hookSlots[index] = { deps: deps ?? [] }
     fn()
   },
   useRef(initial) {
@@ -265,6 +274,142 @@ await test('「打开」把当前路径交给 onPicked', async () => {
   assert.ok(openButton !== null, '找到「打开」按钮')
   openButton.props.onClick()
   assert.equal(picked, '/data/sandbox/proj')
+})
+
+await test('点「请求权限」授予成功：立刻列目录（无需再点刷新）', async () => {
+  routes = {
+    'GET /_ohos/picker/roots': () => ({ roots: [{ id: 'sandbox', name: 'Sandbox', path: '/data/sandbox', granted: true }] }),
+    'POST /_ohos/picker/list': () => ({ ok: false, error: { code: 'directory-unreadable', message: 'EACCES', permissionRequired: true } }),
+    'POST /_ohos/picker/permission/request': () => ({ rootId: 'documents', granted: true, result: 'granted', detail: 'granted' }),
+    'POST /_ohos/picker/list-granted': () => ({ ok: true }),
+  }
+  const props = { ...FLOW_PROPS }
+  plugin.WorkspacePickerFlow(props)
+  await flush()
+  // 切到 documents（未授权）→ 出现授权门
+  hookCursor = 0
+  let tree = plugin.WorkspacePickerFlow(props)
+  await find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('文档')).props.onClick()
+  await flush()
+  hookCursor = 0
+  tree = plugin.WorkspacePickerFlow(props)
+  const gate = find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('请求权限'))
+  assert.ok(gate !== null, '授权门出现「请求权限」')
+  calls.length = 0
+  // 授权成功后再列目录：让 list 改回成功
+  routes['POST /_ohos/picker/list'] = () => ({ ok: true, listing: { path: '/storage/Documents', home: '', crumbs: [], entries: [{ name: 'proj', path: '/storage/Documents/proj', hidden: false }], truncated: false } })
+  await gate.props.onClick()
+  await flush()
+  const seq = calls.map((c) => `${c.method} ${c.url}`)
+  assert.deepEqual(seq[0], 'POST /_ohos/picker/permission/request')
+  assert.ok(seq.includes('POST /_ohos/picker/list'), '授权成功后自动列目录')
+  hookCursor = 0
+  tree = plugin.WorkspacePickerFlow(props)
+  assert.equal(texts(tree).includes('proj'), true, '列表已渲染')
+})
+
+await test('授权被拒(-1) 与 请求无效(2) 给出不同文案', async () => {
+  routes = {
+    'GET /_ohos/picker/roots': () => ({ roots: [{ id: 'sandbox', name: 'Sandbox', path: '/data/sandbox', granted: true }] }),
+    'POST /_ohos/picker/list': () => ({ ok: false, error: { code: 'directory-unreadable', message: 'EACCES', permissionRequired: true } }),
+    'POST /_ohos/picker/permission/request': () => ({ rootId: 'documents', granted: false, result: 'denied', authResult: -1, detail: 'denied by user' }),
+  }
+  const props = { ...FLOW_PROPS }
+  plugin.WorkspacePickerFlow(props)
+  await flush()
+  hookCursor = 0
+  let tree = plugin.WorkspacePickerFlow(props)
+  await find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('文档')).props.onClick()
+  await flush()
+  hookCursor = 0
+  tree = plugin.WorkspacePickerFlow(props)
+  await find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('请求权限')).props.onClick()
+  await flush()
+  hookCursor = 0
+  tree = plugin.WorkspacePickerFlow(props)
+  assert.equal(texts(tree).includes(plugin.COPY.permissionDenied), true, '显示「用户拒绝」文案')
+
+  routes['POST /_ohos/picker/permission/request'] = () => ({ rootId: 'documents', granted: false, result: 'invalid', authResult: 2, detail: 'request void' })
+  hookCursor = 0
+  tree = plugin.WorkspacePickerFlow(props)
+  await find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('请求权限')).props.onClick()
+  await flush()
+  hookCursor = 0
+  tree = plugin.WorkspacePickerFlow(props)
+  assert.equal(texts(tree).includes(plugin.COPY.permissionInvalid), true, '显示「平台不受理」文案')
+  assert.equal(texts(tree).includes(plugin.COPY.permissionDenied), false, '不把 authResult=2 说成用户拒绝')
+})
+
+
+await test('空 authResults（平台不应答）与「已授权但读不出」各有专门文案', async () => {
+  routes = {
+    'GET /_ohos/picker/roots': () => ({ roots: [{ id: 'sandbox', name: 'Sandbox', path: '/data/sandbox', granted: true }] }),
+    'POST /_ohos/picker/list': () => ({ ok: false, error: { code: 'directory-unreadable', message: 'EACCES', permissionRequired: true } }),
+    'POST /_ohos/picker/permission/request': () => ({
+      rootId: 'documents',
+      granted: false,
+      result: 'unknown',
+      authResult: null,
+      authResults: [],
+      detail: 'ATM does not need to request permission',
+    }),
+  }
+  const props = { ...FLOW_PROPS }
+  plugin.WorkspacePickerFlow(props)
+  await flush()
+  hookCursor = 0
+  let tree = plugin.WorkspacePickerFlow(props)
+  await find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('文档')).props.onClick()
+  await flush()
+  hookCursor = 0
+  tree = plugin.WorkspacePickerFlow(props)
+  await find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('请求权限')).props.onClick()
+  await flush()
+  hookCursor = 0
+  tree = plugin.WorkspacePickerFlow(props)
+  assert.equal(texts(tree).includes(plugin.COPY.permissionUnknown), true, '空应答要有「平台没有应答」文案')
+  assert.equal(texts(tree).includes(plugin.COPY.permissionDenied), false, '空应答不等于用户拒绝')
+  assert.ok(find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('请求权限')) !== null)
+  assert.ok(find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('刷新')) !== null)
+
+  routes['POST /_ohos/picker/permission/request'] = () => ({
+    rootId: 'documents',
+    granted: false,
+    result: 'granted-unreadable',
+    authResult: 0,
+    authResults: [0],
+    detail: 'still unreadable',
+  })
+  hookCursor = 0
+  tree = plugin.WorkspacePickerFlow(props)
+  await find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('请求权限')).props.onClick()
+  await flush()
+  hookCursor = 0
+  tree = plugin.WorkspacePickerFlow(props)
+  assert.equal(texts(tree).includes(plugin.COPY.permissionUnreadable), true, 'authResult=0 但读不出要说清楚')
+})
+await test('目录不存在：只给「刷新」，不给「请求权限」', async () => {
+  routes = {
+    'GET /_ohos/picker/roots': () => ({
+      roots: [
+        { id: 'sandbox', name: 'Sandbox', path: '/data/sandbox', granted: true },
+        { id: 'documents', name: 'Documents', path: '/storage/Documents', granted: null, result: 'missing', missing: true },
+      ],
+    }),
+    'POST /_ohos/picker/list': () => ({ ok: true, listing: { path: '/data/sandbox', home: '', crumbs: [], entries: [], truncated: false } }),
+  }
+  const props = { ...FLOW_PROPS }
+  plugin.WorkspacePickerFlow(props)
+  await flush()
+  hookCursor = 0
+  const tree = plugin.WorkspacePickerFlow(props)
+  await find(tree, (n) => n.type === 'button' && (n.children ?? []).includes('文档')).props.onClick()
+  await flush()
+  hookCursor = 0
+  const after = plugin.WorkspacePickerFlow(props)
+  assert.equal(texts(after).includes(plugin.COPY.missingTitle), true, '显示「此设备没有该目录」')
+  assert.equal(find(after, (n) => n.type === 'button' && (n.children ?? []).includes('请求权限')), null, '不给授权按钮')
+  assert.ok(find(after, (n) => n.type === 'button' && (n.children ?? []).includes('刷新')) !== null, '仍可刷新')
 })
 
 if (failures > 0) {

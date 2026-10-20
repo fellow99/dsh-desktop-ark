@@ -42,6 +42,10 @@ interface PermissionReply {
   ok: boolean;
   authResults: number[];
   permissions: string[];
+  /** 请求了几项（用于区分「平台返回空数组」与「参数没送到」） */
+  requested: number;
+  /** 平台返回的条目数；0 表示系统没有产生任何授权应答（多半是拒绝弹窗） */
+  answered: number;
 }
 
 interface AppFacts {
@@ -205,6 +209,11 @@ export class HostCapabilities {
     return result;
   }
 
+  /** 诊断日志（hilog；权限相关只记状态与数量，不记用户数据）。 */
+  private static log(message: string): void {
+    hilog.info(Constants.HILOG_DOMAIN, Constants.HILOG_TAG, '%{public}s', message);
+  }
+
   private static hilog(args: string): string {
     try {
       const parsed: LogArgs = JSON.parse(args) as LogArgs;
@@ -239,6 +248,7 @@ export class HostCapabilities {
         ok: true,
         granted: status === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED
       };
+      HostCapabilities.log(`perm.check：${name} status=${status} tokenId=${tokenId}`);
       return JSON.stringify(payload);
     } catch (error) {
       return HostCapabilities.internal('perm.check', error);
@@ -254,12 +264,20 @@ export class HostCapabilities {
         return JSON.stringify(bad);
       }
       const manager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
+      HostCapabilities.log(`perm.request：申请 ${names.length} 项 ${JSON.stringify(names)}`);
       const result: PermissionRequestResult =
         await manager.requestPermissionsFromUser(context, names as Permissions[]);
+      const authResults: number[] = result.authResults ?? [];
+      const answeredPermissions: string[] = result.permissions ?? [];
+      // 空数组是重要事实（系统没给任何应答），必须连"申请了几项"一起回传，否则调用方
+      // 无法区分"平台拒绝受理"与"参数没送到"（真机上就是这样被误读的）。
+      HostCapabilities.log(`perm.request：应答 ${answeredPermissions.length} 项 authResults=${JSON.stringify(authResults)}`);
       const payload: PermissionReply = {
         ok: true,
-        authResults: result.authResults,
-        permissions: result.permissions
+        authResults: authResults,
+        permissions: answeredPermissions,
+        requested: names.length,
+        answered: answeredPermissions.length
       };
       return JSON.stringify(payload);
     } catch (error) {

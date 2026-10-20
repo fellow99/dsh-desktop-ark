@@ -2,8 +2,12 @@
 
 > **落点**：`entry/src/main/module.json5`（单模块应用，声明面集中在 entry）。
 > **口径**：判定规则与 `dsh-desktop-hos/docs/ACL申请清单-v2.md` §2 一致（同一台设备、同一套 SDK 权限目录）。
-> **权威数据**：本机 SDK 的权限目录 `sdk/default/openharmony/toolchains/lib/PermissionDefinitions.json`（第一手）。
+> **权威数据**：本机 SDK 的权限目录 `sdk/default/openharmony/toolchains/lib/PermissionDefinitions.json`（第一手）；
+> 设备侧副本 `/system/etc/access_token/permission_definitions.json`（实测读取，见 §5.2）。
 > **零 ACL 方案评估**：见 [`ACL-无ACL评估.md`](ACL-无ACL评估.md)。**真机调试记录**：见 [`010-真机调试记录.md`](010-真机调试记录.md)。
+> **2026-10-20 修订**：按姊妹工程 `pi-desktop-ark` 最新三份文档（`001-能力复刻评估.md` REV-8/9/10/11、
+> `ACL配置.md` §5、`ACL-无ACL评估.md` §10）重新评估，并补上本工程自己的两条新实测：
+> **① 运行期授权为何会「没有任何应答」**（§5）；**② `checkAccessTokenSync` 的已知假阴性**（§6）。
 
 ## 1. 声明面（代码事实）
 
@@ -41,6 +45,10 @@
 1. `kernel.INHERIT_PARENT_PERMISSION`、`kernel.IGNORE_LIBRARY_VALIDATION`、`kernel.EXEMPT_ANONYMOUS_EXECUTABLE_MEMORY` 名字带 `kernel.`，但 `availableLevel: normal` + `provisionEnable: false` ⇒ **开放权限，不需要 ACL**，提交 ACL 是浪费配额。
 2. 「加一个更宽的开放权限替代受限权限」**不成立**：`kernel.EXEMPT_ANONYMOUS_EXECUTABLE_MEMORY` 无法替代 `kernel.ALLOW_WRITABLE_CODE_MEMORY`（`ohos-node-bridge/docs/000-工程规划.md` §D.8 探针实测：开放权限下 V8 走 JIT 仍 SIGTRAP）。
 
+**第三个易错点（2026-10-20 新增）**：`normal + user_grant` 的两项目录权限**不需要 ACL，但也不该被塞进 Profile 的 ACL 面** ——
+本工程的调试 Profile 里它们确实在 `acls.allowed-acls` 中（见 §4.1），这与 §5 的「安装后 `grantFlag=2`」高度相关，
+是下次重签时要收敛的项。姊妹工程的 Profile 只有 JIT 一项，`permissions: []`。
+
 ## 3. 现役 ACL：**1 项**
 
 | # | 权限 | 用途 | 缺失后果（实测） |
@@ -59,25 +67,42 @@
 **保留但降级为「运行时授权」的两项**：`READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` —— 都是 `normal` + `user_grant`，**不需要 ACL**，
 装即可声明，真正的授权动作由用户在对话框里点「请求权限」触发（见 §5）。
 
+> ⚠️ 别把「不需要 ACL」读成「不需要授权」：这两项是 `user_grant`，**装完就是没授权**，
+> `browse` 必然 `EACCES`。姊妹工程四台机器全部如此（`docs/01` REV-8/10/11）——**装完打不开是正常现象**。
+
 ## 4. 装机与授权：实测记录
 
 ### 4.1 Profile 是授权面，声明面不等于授权面
 
 DevEco 自动签名为 `org.fellow99.dsh.DshDesktopArk` 生成的调试 Profile（`~/.ohos/config/default_dsh-desktop-ark_*.p7b`）
-**逐项列出了本工程当时声明的受限/用户授权权限**（6 项）：
+解出来的形状（`openssl smime -verify -inform DER -in … -noverify`）：
 
-```
-ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY   ← JIT（现役唯一 ACL）
-ohos.permission.READ_PASTEBOARD                     ← 2026-10-20 撤销
-ohos.permission.READ_WRITE_DESKTOP_DIRECTORY        ← 2026-10-20 撤销
-ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY      ← 保留（运行期授权）
-ohos.permission.READ_WRITE_DOWNLOAD_DIRECTORY       ← 保留（运行期授权）
-ohos.permission.FILE_ACCESS_PERSIST                 ← 2026-10-20 撤销（无使用点）
+```json
+{
+  "type": "debug",
+  "permissions": {},                                     // ← 空
+  "acls": { "allowed-acls": [
+    "ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY",  // ← 现役唯一真 ACL
+    "ohos.permission.READ_WRITE_DESKTOP_DIRECTORY",       // ← 2026-10-20 已撤销声明
+    "ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY",     // ← normal+user_grant，本不该在 ACL 面
+    "ohos.permission.READ_PASTEBOARD",                    // ← 2026-10-20 已撤销声明
+    "ohos.permission.FILE_ACCESS_PERSIST",                // ← 2026-10-20 已撤销声明
+    "ohos.permission.READ_WRITE_DOWNLOAD_DIRECTORY"       // ← normal+user_grant，本不该在 ACL 面
+  ] }
+}
 ```
 
-> 姊妹工程 `pi-desktop-ark` 的反向实证（`docs/ACL配置.md` §2.1，2026-10-16 / HAD-W24）：Profile **不含** ACL 时
-> 装机直接被拒 —— `code:9568289 install failed due to grant request permissions failed, PermissionName: ohos.permission.READ_PASTEBOARD`。
-> 本工程本轮未复现该失败（Profile 一开始就带齐），但结论一致：**留着受限声明而 Profile 里没有它，就装不上**。
+两条结论：
+
+1. **`acls.allowed-acls` 里留着已撤销的声明项是无害的**（装机不再受它们约束；`atm dump` 里它们已 ABSENT）。
+2. **但把 `normal + user_grant` 放进 ACL 面会有副作用**：安装期平台会给这两个权限打上 `grantFlag = 2`
+   （`PERMISSION_SYSTEM_GRANT_FLAG`），而 `grantStatus` 仍是 `-1`。这个**自相矛盾的状态**正是 §5 里
+   「点『请求权限』什么也没发生」的直接原因。姊妹工程同设备、同 API、同声明写法，Profile 里只有 JIT 一项 ⇒ 没有这个问题。
+   ⇒ **下次重签时把这两项从 `allowed-acls` 移除**（它们本来就不需要 ACL）。
+
+对照：姊妹工程 `pi-desktop-ark` 的反向实证（`docs/ACL配置.md` §2.1，2026-10-16 / HAD-W24）—— Profile **不含** ACL 时
+装机直接被拒：`code:9568289 install failed due to grant request permissions failed, PermissionName: ohos.permission.READ_PASTEBOARD`。
+本工程本轮未复现该失败（Profile 一开始就带齐），结论一致：**留着受限声明而 Profile 里没有它，就装不上**。
 
 ### 4.2 本工程真机实测（2026-10-19，HAD-W32 / HarmonyOS 7.0.0.107 / API 26）
 
@@ -99,20 +124,155 @@ ohos.permission.FILE_ACCESS_PERSIST                 ← 2026-10-20 撤销（无�
 5. `hdc shell cat .../files/payload/ready.json` 看 `phase`，`hdc shell cat .../files/payload/app.log` 看垫片与权限日志；
 6. 若出现 SIGTRAP（`Cpp Crash` + 崩溃栈含 `libnode_bridge.so`）⇒ JIT ACL 丢了：核对 Profile 里是否仍有 `ALLOW_WRITABLE_CODE_MEMORY`。
 
-## 5. 运行期授权交互（工作区选择器）
+## 5. 运行期授权：点「请求权限」为什么可能**什么也没发生**
 
-撤销 ACL 之后，「文档 / 下载」只剩 `user_grant`，因此必须决定**什么时候弹窗**。本工程的约定：
+这是本工程 2026-10-20 定位到的问题，也是选择器「卡在加载中 / 一直显示未授权」的根因。
 
-- **点 Tab 不申请权限**：只查状态（`perm.check`）。未授权时对话框**不显示列表**，改为两个按钮；
+### 5.1 现象
+
+点「请求权限」后日志出现（设备 `hilog`，ATM 域，**本应用进程内**）：
+
+```
+I accesstoken_service/ATM: [GetSelfPermissionsState]Bundle com.huawei.hmos.security.privacycenter,
+                             uiExAbility PermissionGrantAbility, serExAbility PermissionServiceGrantAbility, callerPid 7156.
+I accesstoken_service/ATM: [GetSelfPermissionState]ohos.permission.READ_WRITE_DOWNLOAD_DIRECTORY: status: -1, flag: 2
+I org.fellow99.dsh.DshDesktopArk/ATM: [IsDynamicRequest]Permission: ohos.permission.READ_WRITE_DOWNLOAD_DIRECTORY: state: -1, errorReason: 0
+I org.fellow99.dsh.DshDesktopArk/ATM: [RequestPermissionsFromUserExecute]It does not need to request permission
+```
+
+⇒ `requestPermissionsFromUser()` 立即返回，`authResults: []`、`permissions: []`。**没有弹窗，也没有授予。**
+
+判读：`flag: 2` 是 `PERMISSION_SYSTEM_GRANT_FLAG`，`status: -1` 是「未授予」。平台看到「系统级已授予」的旗标
+就不再走动态申请路径（`It does not need to request permission`），但实际并未授予 ——
+**这个矛盾态就是「既不弹窗也不生效」**。源头是 §4.1 第 2 条（Profile 把这两项写进了 ACL 面）。
+
+
+### 5.2 更普遍的形态：**就算弹窗了，`authResults` 也是空的**（2026-10-20 补测）
+
+复位成 `flag 0 / status -1` 后弹窗正常出现，但**用户点「允许」和点「不允许」两种结果，`authResults` 都是 `[]`**：
+
+| 输入 | 弹窗 | 返回 | `atm` 结果 |
+|---|---|---|---|
+| 点「允许」 | ✅ 出现 | `authResults: []` | `status 0 / flag 2`（**真的授予了**） |
+| 点「不允许」 | ✅ 出现 | `authResults: []` | `status -1 / flag 2`（**真的没授予**） |
+
+⇒ 在这台设备上，**`requestPermissionsFromUser` 的返回值不可作为判定依据**（授权与否都不告诉你），
+唯一可信的事实是「目录现在能不能读」。这正是 §6 把判定基准换成文件系统的直接原因；
+客户端的 `unknown` 文案也据此写成「平台没有给出授权结果……可能是你点了不允许，也可能是平台不受理」。
+
+另有一处时序坑：**授权生效会滞后几百毫秒** —— 刚点完「允许」，紧接着的一次 `readdir` 仍是 `EACCES`，
+约 0.5 s 后才通过。所以 `requestPermission()` 的收尾探测要**短轮询**（8 次 × 350 ms），
+否则界面会误报「授权没生效」（首版实测踩到，用户必须手点一次「刷新」才看到列表）。
+
+### 5.3 真机 UI 全流程（2026-10-20，干净起点 `status -1 / flag 0`）
+
+| 场景 | 结果 |
+|---|---|
+| 打开选择器 → 点「文档」 | ✅ 显示授权门（「未获得该目录的访问权限」+ 请求权限 / 刷新），**未列目录、`atm` 未变**（点 Tab 不申请） |
+| 点「请求权限」 | ✅ 系统弹窗「允许"DSH Desktop"访问你的"文档"文件夹？」，含 不允许 / 允许 |
+| 点「允许」 | ✅ **自动列出** `DevEcoStudioProjects` / `JianyingPro` / `pi203-documents`（无需再点刷新）；`atm` → `status 0` |
+| 点「下载」→ 请求权限 → 允许 | ✅ 弹窗「…访问你的"下载"文件夹？」，允许后**自动列出 7 项**；`atm` → `status 0` |
+| 点「不允许」 | ✅ 停留在授权门，显示「平台没有给出授权结果…」，`atm` 保持 `-1`（不再弹窗的规则同姊妹工程） |
+
+截图与原始 dump 在 `logs/20261020-1/`（本地留存，已 gitignore）：`31-documents-gate` / `32-documents-dialog` /
+`33-documents-auto-listed` / `34-download-auto-listed` / `35-documents-denied`。
+### 5.4 复位：让矛盾态回到「可申请」状态（已实测）
+
+```bash
+# 1) 看当前状态（status=-1 / flag=2 就是矛盾态）
+hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -A2 DOCUMENTS_DIRECTORY
+
+# 2) 复位该应用的 user_grant 状态（flag 回到 0）
+hdc shell "atm perm -r -b org.fellow99.dsh.DshDesktopArk"      # → Success
+
+# 3) 再点「请求权限」（或经路由 POST /_ohos/picker/permission/request）
+#    ⇒ 系统授权对话框真的出现：「允许"DSH Desktop"访问你的"文档"文件夹？」
+hdc shell "uitest dumpLayout -p /data/local/tmp/layout.json"   # 读到 不允许 / 允许
+hdc shell "uitest uiInput click 1742 1116"                     # 点「允许」
+
+# 4) 复验
+hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -A2 DOCUMENTS_DIRECTORY  # grantStatus: 0
+```
+
+之后 `browse`/`list` 立刻能列出真实目录（`DevEcoStudioProjects` / `JianyingPro` / `pi203-documents`）。
+
+设备侧权限定义（`/system/etc/access_token/permission_definitions.json`）确认这两项是
+`grantMode: user_grant`、`availableLevel: normal`、`availableType: NORMAL`、`provisionEnable: true`、`since: 11`
+—— **声明/级别完全没问题**，问题只在授权面的矛盾态。
+
+### 5.5 交互约定（本工程定稿）
+
+- **点 Tab 不申请权限**：只查状态。未授权时对话框**不显示列表**，改为「请求权限」「刷新」两个按钮；
+- **「刷新」**：只重新探测状态，不申请；
 - **「请求权限」**：用户点击后才 `perm.request`（弹系统授权窗）；
-- **「刷新」**：重新查一次状态；已授权则渲染列表，仍未授权则保持按钮态；
-- Host 侧任何路径（`list` / `createDirectory`）都**不会**隐式申请权限；失败时把 `permissionRequired` 透传给客户端，由客户端决定渲染。
+- Host 侧任何路径（`list` / `createDirectory`）都**不会**隐式申请权限；失败时把 `permissionRequired` 透传，由客户端决定渲染。
 
-实现落点：
-- Host：`packages/workspace-picker-ohos/lib/index.js`（`permission()` / `requestPermission()`，以及 `list()` 不再 `retryPermission`）、`lib/routes.js`（`/_ohos/picker/{roots,list,create,permission,permission/request}`）；
-- Client：`packages/workspace-picker-client-ohos/lib/client.js`（三 Tab + 授权门）。
+实现落点：Host `packages/workspace-picker-ohos/lib/{index.js,routes.js}`，Client `packages/workspace-picker-client-ohos/lib/client.js`。
 
-## 6. 与运行时投放的关系
+## 6. `checkAccessTokenSync` 的已知假阴性 ⇒ 判定以「目录可读」为准
+
+真机实测（2026-10-20，同一时刻）：
+
+| 观测 | 结果 |
+|---|---|
+| `atm dump -t -b …` | `READ_WRITE_DOCUMENTS_DIRECTORY: grantStatus 0 / grantFlag 2`（**已授予**） |
+| 真实列目录 | ✅ 200 + `DevEcoStudioProjects` / `JianyingPro` / `pi203-documents`（**确实能读**） |
+| `perm.check`（`manager.checkAccessTokenSync`） | ❌ `granted:false`（**假阴性**） |
+
+姊妹工程早就登记过这条（`pi-desktop-ark/entry/…/HostCapabilities.ets` 的 `perm.check` hint：
+「真机已知假阴性：授予后仍可能报 false；判断能不能用请看真实读写结果」）。
+
+于是本工程把**判定基准换成文件系统**（`packages/workspace-picker-ohos/lib/index.js`）：
+
+| 方法 | 语义 |
+|---|---|
+| `probeAccess(root)` | `readdir` 探一次 ⇒ `readable` / `denied`(EACCES·EPERM) / `missing`(ENOENT·ENOTDIR) / `unknown` |
+| `permission(rootId)` | 顺序：目录缺失 ⇒ 无需权限 ⇒ **可读（即已授权）** ⇒ 才问 `perm.check`；`perm.check` 只用于归因，不用于判「已授权」 |
+| `probeAccessSettled(root)` | 同上，但**短轮询**（8 次 × 350 ms）：授权生效滞后几百毫秒，探一次会误判 |
+| `requestPermission(rootId)` | **可读就不弹窗**；否则申请，**申请后短轮询探测**，以「现在能不能读」收尾；`authResults` 的 `0/-1/2/空` 四种分别上报，但**不决定**授权与否 |
+
+对应结果码（路由/客户端共用）：`granted`、`not-granted`、`granted-unreadable`（API 说已授予但读不出）、
+`denied`、`invalid`、`unknown`（平台没有应答，即 §5 的矛盾态）、`missing`、`unavailable`（宿主桥不可用）、`unknown-root`。
+
+## 7. 设备与形态矩阵
+
+本工程实测（`3QC0226526001227` = HAD-W32 / 2in1 / HarmonyOS 7.0.0.107 / API 26）：
+
+| 场景 | `atm` 状态 | 真机结果 |
+|---|---|---|
+| 装完未授权 | `status -1 / flag 0` | `browse`/`list` ⇒ `EACCES`（正常，`user_grant` 本就要授权）；点 Tab 只显示授权门 |
+| 点「请求权限」（`flag 0`） | 弹窗出现 | 点「允许」→ `status 0`、**自动列出**；点「不允许」→ `status -1`、留在授权门。两种情况 `authResults` 都是 `[]`（§5.2） |
+| 已授权再申请 | `status 0` | ✅ 不发系统请求（可读即返回，不重复打扰） |
+| `flag 2 / status -1` 矛盾态（§5.1） | **弹窗都不出现**，`authResults: []` | 界面只能停在授权门 ⇒ 必须 `atm perm -r -b` 复位，或重签 Profile（§4.1 / §8） |
+| 撤销/拒绝后 | `-1` | 平台**不再弹窗**（姊妹工程四机一致）；只能去系统设置开启 |
+
+姊妹工程四机对照（`pi-desktop-ark/docs/ACL配置.md` §5，同一套 API 家族）：
+
+| 设备 | `deviceType` | 装完 `browse` | 运行时请求 | 授权后 |
+|---|---|---|---|---|
+| 2in1 `HAD-W32`（API 26） | `2in1` | 403 `EACCES` | ✅ `authResult:0`（静默授予，无弹窗） | ✅ 200（文档 3 项 / 下载 7 项） |
+| 平板 `MRDI-W00`（API 24） | `tablet` | 403 `EACCES` | ✅ `authResult:0` | ✅ 200（文档 0 项 / 下载 4 项） |
+| 手机 `JUY-AL80`（API 26） | `phone` | 403 `EACCES` | ❌ **`authResult:2`（请求无效）**，无弹窗 | ❌ 仍 403 |
+| TV（非标准 OH，不列为验收对象） | `default` | 403 `EACCES` | ⚠️ `authResult:0` | ❌ 仍 403（该机**没有用户主目录**） |
+
+`authResult` 语义（本地 SDK `security/PermissionRequestResult.d.ts`）：`0` 已授予、`-1` 未授予（用户拒绝）、`2` 请求无效。
+本工程另加一种**非 SDK 值**：**空数组** = 平台根本没应答（§5）。
+
+⚠️ 本工程 `deviceTypes` 只有 `["2in1","tablet"]`，手机（`7XNYD26515001370`）装不上（`code:9568413`），
+所以手机侧结论只能沿用姊妹工程，且**不要**据此改代码。
+
+## 8. 后续路线（均**未**实施）
+
+1. **重签 Profile，把两项目录权限从 `acls.allowed-acls` 移除**（最省事，推荐先做）：它们不需要 ACL；
+   移除后不会再产生 `flag 2 / status -1` 的矛盾态，运行期申请即可正常弹窗（§5.2 已证明复位就能弹）。
+   该权限 `provisionEnable: true`，另一条路是把它们放进 `permissions` 做**预授权** ⇒ 装完即授予、无需弹窗，
+   代价是「用户没有拒绝权」，且改 profile 需重新签名重装。
+2. **改走系统选择器**：`DocumentViewPicker` 取一次性授权 URI，无需任何目录权限。
+   现状：ArkTS 侧未实现 `picker.DocumentViewPicker`（本工程只有 `perm.openAppInfo` 与 `shell.openExternal`）。
+3. **如实呈现**：`ENOENT`（设备没有该目录）与 `EACCES`（没授权）已分开（`result: 'missing'` vs `'not-granted'`），
+   UI 分别给「只刷新」与「请求权限 + 刷新」。
+
+## 9. 与运行时投放的关系
 
 ACL 只决定**内存权限**，不影响原生库与载荷：`libnode.so`（120.9 MiB）由 `scripts/provision-runtime.sh`
 （委托 `ohos-node-bridge/tools/provision.mjs`，七项 ELF 门禁 + SHA-256 对账）投放进 `entry/libs/arm64-v8a/`；

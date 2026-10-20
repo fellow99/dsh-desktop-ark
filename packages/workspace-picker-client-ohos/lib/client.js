@@ -24,11 +24,16 @@ window.__ModuleLoader__.load({
       open: '打开',
       requestPermission: '请求权限',
       refresh: '刷新',
+      truncated: '文件夹过多，仅显示开头部分。',
       permissionTitle: '未获得该目录的访问权限',
       permissionBody: '点「请求权限」按系统提示授权；授权后点「刷新」即可浏览。',
-      permissionDenied: '授权未通过，可再次点「请求权限」或在系统设置里授予。',
-      permissionUnknown: '无法判定权限状态（宿主桥不可用）。',
-      truncated: '文件夹过多，仅显示开头部分。',
+      permissionDenied: '用户拒绝了授权。系统在「曾经拒绝/被撤销」后不再弹窗，可去系统设置里开启该权限再点「刷新」。',
+      permissionInvalid: '平台不受理本次授权请求（authResult=2，常见于手机形态或应用不在前台）。可点「刷新」重试，或改用系统文件选择器。',
+      permissionUnknown: '平台没有给出授权结果（authResults 为空），且目录仍不可读——可能是刚才点了「不允许」，也可能是平台不受理该请求。可点「请求权限」重试；若反复无效，请到「设置 → 应用 → 权限」手动开启后点「刷新」。',
+      permissionUnreadable: '平台报「已授权」，但目录实际仍不可读。可重启应用后再点「刷新」，或去系统设置里撤销后重新授权。',
+      permissionUnavailable: '无法判定权限状态（宿主桥不可用）——请确认应用已正常启动后再试。',
+      missingTitle: '此设备没有该目录',
+      missingBody: '路径不存在（不是权限问题）。可点「刷新」重新检测，或用「沙箱」目录作为工作区。',
       failed: '打开失败',
     }
 
@@ -97,20 +102,38 @@ window.__ModuleLoader__.load({
 
     /**
      * 调 Host 路由。
+     *
+     * **必须有上限**：授权类请求要等用户在系统窗里点按，平台也可能永远不应答
+     * （真机上出现过停在「加载中…」直到超时的情况）。所以给一个明确上限，
+     * 超时后抛出可读错误，而不是让界面一直转圈。
+     *
      * @param {string} path
      * @param {unknown} [body] - 省略则为 GET
+     * @param {number} [timeoutMs] - 默认 180 s（授权窗点击 + 系统往返留足余量）
      */
-    async function callRoute(path, body) {
-      const response = await fetch(ROUTES + path, body === undefined
-        ? { method: 'GET', credentials: 'same-origin', headers: { accept: 'application/json' } }
-        : {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'content-type': 'application/json', accept: 'application/json' },
-            body: JSON.stringify(body),
-          })
-      if (!response.ok) throw new Error(`${path} -> HTTP ${response.status}`)
-      return response.json()
+    async function callRoute(path, body, timeoutMs = 180_000) {
+      const controller = typeof AbortController === 'function' ? new AbortController() : null
+      const timer = controller === null ? null : setTimeout(() => controller.abort(), timeoutMs)
+      try {
+        const response = await fetch(ROUTES + path, body === undefined
+          ? { method: 'GET', credentials: 'same-origin', headers: { accept: 'application/json' }, signal: controller?.signal }
+          : {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'content-type': 'application/json', accept: 'application/json' },
+              body: JSON.stringify(body),
+              signal: controller?.signal,
+            })
+        if (!response.ok) throw new Error(`${path} -> HTTP ${response.status}`)
+        return response.json()
+      } catch (failure) {
+        if (failure instanceof Error && failure.name === 'AbortError') {
+          throw new Error(`${path} -> 超时（${Math.round(timeoutMs / 1000)} s 未应答）`)
+        }
+        throw failure
+      } finally {
+        if (timer !== null) clearTimeout(timer)
+      }
     }
 
     /**
@@ -161,9 +184,12 @@ window.__ModuleLoader__.load({
           if (payload.ok === true) {
             setListing(payload.listing)
             setGate(null)
+          } else if (payload.error && payload.error.missing === true) {
+            setListing(null)
+            setGate({ kind: 'missing', rootId: tab, message: payload.error.message || '' })
           } else if (payload.error && payload.error.permissionRequired === true) {
             setListing(null)
-            setGate({ rootId: tab, denied: false, message: '' })
+            setGate({ kind: 'permission', rootId: tab, reason: 'not-granted', message: '' })
           } else {
             setListing(null)
             setError(`${COPY.failed}: ${payload.error ? payload.error.message : 'unknown'}`)
@@ -187,8 +213,14 @@ window.__ModuleLoader__.load({
           return
         }
         if (root === undefined) {
-          setGate({ rootId: id, denied: false, message: '' })
+          setGate({ kind: 'permission', rootId: id, reason: 'unavailable', message: '' })
           setListing(null)
+          return
+        }
+        // 目录本身不存在（设备没有用户主目录体系）⇒ 不是权限问题，不给授权按钮。
+        if (root.missing === true) {
+          setListing(null)
+          setGate({ kind: 'missing', rootId: id, message: root.permissionDetail || '' })
           return
         }
         if (root.granted === true) {
@@ -197,7 +229,12 @@ window.__ModuleLoader__.load({
         }
         // 未授权 / 无法判定：不列目录、不申请，直接给「请求权限 / 刷新」两个按钮。
         setListing(null)
-        setGate({ rootId: id, denied: root.granted === false, message: root.permissionDetail || '' })
+        setGate({
+          kind: 'permission',
+          rootId: id,
+          reason: root.result ?? 'not-granted',
+          message: root.permissionDetail || '',
+        })
       }, [loadListing, loadRoots])
 
       // 打开时进入当前 Tab。
@@ -222,8 +259,11 @@ window.__ModuleLoader__.load({
             setGate(null)
             const root = rootOf(tab)
             await loadListing(root ? root.path : undefined)
+          } else if (payload.result === 'missing') {
+            setGate({ kind: 'missing', rootId: tab, message: payload.detail || '' })
           } else {
-            setGate({ rootId: tab, denied: true, message: payload.detail || '' })
+            // denied(-1) / invalid(2) / unavailable 三种原因分开呈现，不混成一句「失败」。
+            setGate({ kind: 'permission', rootId: tab, reason: payload.result || 'unknown', message: payload.detail || '' })
           }
         } catch (failure) {
           if (mounted.current) setError(`${COPY.failed}: ${failure instanceof Error ? failure.message : String(failure)}`)
@@ -235,10 +275,17 @@ window.__ModuleLoader__.load({
       const refresh = async () => {
         const root = (await loadRoots()).find((candidate) => candidate.id === tab)
         if (root === undefined) return
-        if (root.granted === true || tab === 'sandbox') {
+        if (root.missing === true) {
+          setGate({ kind: 'missing', rootId: tab, message: root.permissionDetail || '' })
+        } else if (root.granted === true || tab === 'sandbox') {
           await loadListing(root.path)
         } else {
-          setGate({ rootId: tab, denied: root.granted === false, message: root.permissionDetail || '' })
+          setGate({
+            kind: 'permission',
+            rootId: tab,
+            reason: root.result ?? 'not-granted',
+            message: root.permissionDetail || '',
+          })
         }
       }
 
@@ -255,7 +302,7 @@ window.__ModuleLoader__.load({
             setFolderName('')
             await loadListing(listing.path)
           } else if (payload.error && payload.error.permissionRequired === true) {
-            setGate({ rootId: tab, denied: true, message: payload.error.message || '' })
+            setGate({ kind: 'permission', rootId: tab, reason: 'denied', message: payload.error.message || '' })
           } else {
             setError(`${COPY.failed}: ${payload.error ? payload.error.message : 'unknown'}`)
           }
@@ -294,11 +341,27 @@ window.__ModuleLoader__.load({
           error !== '' && h('div', { style: S.error }, error),
           h('div', { style: S.body },
             loading && h('div', { style: S.muted }, COPY.loading),
-            !loading && gate !== null && h('div', { style: S.gate },
+            // 目录不存在（设备没有用户主目录）：只给「刷新」，不给「请求权限」——授权解决不了。
+            !loading && gate !== null && gate.kind === 'missing' && h('div', { style: S.gate },
+              h('div', { style: S.gateTitle }, COPY.missingTitle),
+              h('div', { style: S.gateBody },
+                COPY.missingBody,
+                gate.message ? h('div', { style: { marginTop: 6, color: '#999' } }, gate.message) : null,
+              ),
+              h('div', { style: { display: 'flex', gap: 8, justifyContent: 'center' } },
+                h('button', { type: 'button', style: S.btn(true), onClick: refresh }, COPY.refresh),
+              ),
+            ),
+            // 授权门：未授权 / 用户拒绝 / 平台不受理 / 桥不可用，四种原因分别给文案。
+            !loading && gate !== null && gate.kind !== 'missing' && h('div', { style: S.gate },
               h('div', { style: S.gateTitle }, COPY.permissionTitle),
               h('div', { style: S.gateBody },
                 COPY.permissionBody,
-                gate.denied ? h('div', { style: { marginTop: 6 } }, COPY.permissionDenied) : null,
+                gate.reason === 'denied' ? h('div', { style: { marginTop: 6 } }, COPY.permissionDenied) : null,
+                gate.reason === 'invalid' ? h('div', { style: { marginTop: 6 } }, COPY.permissionInvalid) : null,
+                gate.reason === 'unknown' ? h('div', { style: { marginTop: 6 } }, COPY.permissionUnknown) : null,
+                gate.reason === 'granted-unreadable' ? h('div', { style: { marginTop: 6 } }, COPY.permissionUnreadable) : null,
+                gate.reason === 'unavailable' ? h('div', { style: { marginTop: 6 } }, COPY.permissionUnavailable) : null,
                 gate.message ? h('div', { style: { marginTop: 6, color: '#999' } }, gate.message) : null,
               ),
               h('div', { style: { display: 'flex', gap: 8, justifyContent: 'center' } },
