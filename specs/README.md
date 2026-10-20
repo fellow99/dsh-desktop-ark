@@ -133,6 +133,18 @@
 | 任务分解 | [109-jitless/tasks.md](./109-jitless/tasks.md) | `T-109-*` |
 | 测试用例 | [109-jitless/test-cases.md](./109-jitless/test-cases.md) | `TC-109-*` |
 
+### 204 — 插件：GIT 操作（Git Plugin）
+
+> 设备没有 `git` 二进制：把纯 JS 的 isomorphic-git 嵌入宿主进程，交付 21 个 git 工具 + 「Git 凭据」设置页。
+> 与 `../dsh-desktop-hos/specs/204-plugin-git/` 同源（行为契约一致，差异只在装配面：包名 / 物化落点 / 挂载行 / 调试通道）。
+
+| 文档 | 链接 | 说明 |
+|---|---|---|
+| 功能规格 | [204-plugin-git/spec.md](./204-plugin-git/spec.md) | `FR-204-*` / `AC-204-*` |
+| 技术方案 | [204-plugin-git/plan.md](./204-plugin-git/plan.md) | 挂载面、依赖物化、围栏、凭据、`--inspect` |
+| 任务分解 | [204-plugin-git/tasks.md](./204-plugin-git/tasks.md) | `T-204-*` |
+| 测试用例 | [204-plugin-git/test-cases.md](./204-plugin-git/test-cases.md) | `TC-204-*`（含脱敏纪律） |
+
 ---
 
 ## 五、模块编号一览
@@ -144,10 +156,11 @@
 | 103 | ArkWeb 外壳 | ArkWeb Shell | 界面 |
 | 104 | 宿主能力桥 | Host Capability Bridge | 能力 |
 | 105 | 上游适配层 | Upstream Adapter Bundle | 适配 |
-| 106 | 工作区选择 | Workspace Picker | 适配（planned） |
+| 106 | 工作区选择 | Workspace Picker | 适配 |
 | 107 | 诊断与可观测 | Diagnostics & Observability | 工程 |
 | 108 | 合规与发布 | Compliance & Release | 发布 |
 | 109 | 无 JIT 模式 | JIT-less (compat) | 运行时 |
+| 204 | 插件：GIT 操作 | Git Plugin | 插件（需求 204，规格在本工程而非父工程） |
 
 ---
 
