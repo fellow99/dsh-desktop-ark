@@ -64,6 +64,9 @@ Every call first resolves `dir` through `ctx.fs` into the absolute **repository 
 ## Tests
 
 ```bash
+# The tests drive the real isomorphic-git closure, so it must be resolvable from this package.
+# Either copy it out of an assembled payload, or install it once locally:
+#   pnpm add isomorphic-git@1.44.2 --config.node-linker=hoisted --ignore-scripts   # (gitignored)
 node --test packages/git-ohos/test/*.test.mjs
 ```
 

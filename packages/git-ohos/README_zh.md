@@ -64,6 +64,9 @@
 ## 测试
 
 ```bash
+# 用例跑真实的 isomorphic-git 闭包，所以它必须能从本包解析到。
+# 从装配好的载荷里拷一份，或在本地装一次（node_modules 已被 .gitignore 忽略）：
+#   pnpm add isomorphic-git@1.44.2 --config.node-linker=hoisted --ignore-scripts
 node --test packages/git-ohos/test/*.test.mjs
 ```
 
