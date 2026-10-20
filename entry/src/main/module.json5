@@ -61,17 +61,6 @@
         "name": "ohos.permission.kernel.IGNORE_LIBRARY_VALIDATION",
         "reason": "$string:ignore_library_validation",
         "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
-      },
-      // ── 用户授权（normal + user_grant，不需 ACL）：点 Tab 只查状态，用户点「请求权限」才弹窗 ──
-      {
-        "name": "ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY",
-        "reason": "$string:documents_dir",
-        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
-      },
-      {
-        "name": "ohos.permission.READ_WRITE_DOWNLOAD_DIRECTORY",
-        "reason": "$string:download_dir",
-        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
       }
       // ── 受限开放权限（需 ACL，Profile 必须授权，否则装机即拒）────────────────────
       // 109-jitless：JIT 权限只属于 `jit` 形态；标记之间的内容由 `scripts/set-node-mode.mjs`

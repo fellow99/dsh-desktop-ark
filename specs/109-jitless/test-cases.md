@@ -57,9 +57,9 @@
 - 证据：`node.log`、`ready.json`
 
 ### TC-109-010 权限面复核
-- 步骤：`hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -E "DOCUMENTS|DOWNLOAD|WRITABLE"`
-- 期望（compat 变体）：目录两项存在（用户授权语义），JIT 项不存在
-- 证据：dump 输出
+- 步骤：`unzip -p … module.json | grep -E "DOCUMENTS|DOWNLOAD|WRITABLE"`；`hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -E "DOCUMENTS|DOWNLOAD|WRITABLE"`
+- 期望（compat 变体）：**三项都不存在于声明面**（目录两项已移除、JIT 未声明）；`atm dump` 中也无这三项
+- 证据：HAP `module.json` + dump 输出
 
 ## C. 回归与降级
 

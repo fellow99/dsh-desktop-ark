@@ -32,7 +32,7 @@
 
 ## 2. 现役权限面（本次定稿）
 
-- `requestPermissions`（**历史数字，109-jitless 前**）：9 项（8 项本工程声明 + `GET_NETWORK_INFO`）。**现为 compat 8 / jit 9**（JIT 仅 jit 变体声明）
+- `requestPermissions`（**历史数字，109-jitless 前**）：9 项。**现为 compat 6 / jit 7**（JIT 仅 jit 变体声明；`READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` 已于 2026-10-20 R2 从声明面移除）
 - `definePermissions`（历史）：`kernel.ALLOW_WRITABLE_CODE_MEMORY`。**现为 compat 空 / jit 1 项**
 - Ability 后台模式：`taskKeeping`
 - **现役 ACL**：compat **0 项** / jit 1 项（`kernel.ALLOW_WRITABLE_CODE_MEMORY`）
@@ -222,3 +222,4 @@ grep -n "globalThis.fetch" build/payload-stage/dsh/node_modules/@deepseek-ai/dsh
 | 启动自检 | `compat` 下每次启动跑一次回环自检，事实写 `app.log` 与 `ready.json#compat.selfcheck`（≈195 ms） |
 | 形态切换 | `node scripts/set-node-mode.mjs jit|compat`（幂等；同步 `BuildConfig.NODE_MODE` 与 `module.json5` 声明面） |
 | 未覆盖 | `libreoffice-kit`（WASM worker，功能未挂载）、code-mode 类能力：如实失败，不伪造成功 |
+| 声明面收敛 | `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` 已从 `module.json5` 移除（R2）；选择器两 Tab 保留但如实报未授权 |

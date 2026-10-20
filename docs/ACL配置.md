@@ -17,12 +17,12 @@
 
 | 项 | 内容 |
 |---|---|
-| `requestPermissions` | **compat 8 项 / jit 9 项**（7 项常驻本工程 + `GET_NETWORK_INFO` 由 HAR 合并；JIT 权限仅 `jit` 变体声明） |
-| 其中带 `reason` + `usedScene` | **5 项**（`EntryAbility` / `inuse`）：`PREPARE_APP_TERMINATE`、`INHERIT_PARENT_PERMISSION`、`kernel.IGNORE_LIBRARY_VALIDATION`、`READ_WRITE_DOCUMENTS_DIRECTORY`、`READ_WRITE_DOWNLOAD_DIRECTORY`（文案在 `base/element/string.json`） |
+| `requestPermissions` | **compat 6 项 / jit 7 项**（5 项常驻本工程 + `GET_NETWORK_INFO` 由 HAR 合并；JIT 权限仅 `jit` 变体声明） |
+| 其中带 `reason` + `usedScene` | **3 项**（`EntryAbility` / `inuse`）：`PREPARE_APP_TERMINATE`、`INHERIT_PARENT_PERMISSION`、`kernel.IGNORE_LIBRARY_VALIDATION`（文案在 `base/element/string.json`） |
 | `definePermissions` | **compat：空 / jit：`kernel.ALLOW_WRITABLE_CODE_MEMORY`**（受限权限两处成对出现） |
 | Ability 后台模式 | `EntryAbility.backgroundModes = ["taskKeeping"]` |
 
-本工程自有的 8 项：
+本工程自有的 5 项（下表第 6 行是 `jit` 变体才声明的 ACL）：
 
 | # | 权限 | availableLevel | grantMode | provisionEnable | 需 ACL？ | 用途 |
 |---|---|---|---|---|---|---|
@@ -31,9 +31,7 @@
 | 3 | `KEEP_BACKGROUND_RUNNING` | normal | system_grant | true | ❌ | `taskKeeping` 长时任务 |
 | 4 | `INHERIT_PARENT_PERMISSION` | normal | system_grant | **false** | ❌ | 内置 Node 运行时与宿主同权限（名字带 `kernel.` 但属**开放权限**） |
 | 5 | `kernel.IGNORE_LIBRARY_VALIDATION` | normal | system_grant | **false** | ❌ | 加载随包 `libnode.so` / `libnode_bridge.so` 时跳过库校验（同上，开放权限） |
-| 6 | `READ_WRITE_DOCUMENTS_DIRECTORY` | normal | **user_grant** | true | ❌ | 工作区选择器「文档」Tab（运行期授权） |
-| 7 | `READ_WRITE_DOWNLOAD_DIRECTORY` | normal | **user_grant** | true | ❌ | 工作区选择器「下载」Tab（运行期授权） |
-| 8 | `kernel.ALLOW_WRITABLE_CODE_MEMORY` | **system_basic** | system_grant | true | ✅ **需 ACL** | 进程内 Node/V8 的 JIT（无它不带 `--jitless` 即 SIGTRAP）。**仅 `jit` 变体声明**；默认 compat 不声明 |
+| 6 | `kernel.ALLOW_WRITABLE_CODE_MEMORY` | **system_basic** | system_grant | true | ✅ **需 ACL** | 进程内 Node/V8 的 JIT（无它不带 `--jitless` 即 SIGTRAP）。**仅 `jit` 变体声明**；默认 compat 不声明 |
 
 依赖合并进来的 1 项：`GET_NETWORK_INFO`（normal / system_grant，来自 `ohos-node-bridge/library/src/main/module.json5`，不随本工程声明面维护）。
 
@@ -68,11 +66,16 @@
 | `FILE_ACCESS_PERSIST` | normal + system_grant（不需 ACL，但**无使用点**） | 选择器是**路径**模型（不返回 URI），全仓 0 处 `fileShare.persistPermission`；保留只会误导审计 |
 | `kernel.EXEMPT_ANONYMOUS_EXECUTABLE_MEMORY` | normal + system_grant（不需 ACL，但**无使用点/不能替代 JIT**） | 见 §2 第 2 点：它不能替代 `ALLOW_WRITABLE_CODE_MEMORY`；JIT 已由 ACL 满足，留着属于「声明面 ≠ 使用面」 |
 
-**保留但降级为「运行时授权」的两项**：`READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` —— 都是 `normal` + `user_grant`，**不需要 ACL**，
-装即可声明，真正的授权动作由用户在对话框里点「请求权限」触发（见 §5）。
+**2026-10-20 二次收敛（R2，用户决定）**：`READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` 已**从声明面移除**
+（`module.json5` 的 `requestPermissions` 不再包含二者）。后果与口径：
 
-> ⚠️ 别把「不需要 ACL」读成「不需要授权」：这两项是 `user_grant`，**装完就是没授权**，
-> `browse` 必然 `EACCES`。姊妹工程四台机器全部如此（`docs/01` REV-8/10/11）——**装完打不开是正常现象**。
+- 应用**不再具备**文档/下载目录的读写权限；工作区选择器的「文档」「下载」两个 Tab **保留**（用户选择 C），
+  但会如实报 `not-granted`；「请求权限」会被平台拒绝（未声明的权限无法运行期申请）。
+- 沙箱根不受影响；**没有**任何路径再调用这两个权限名（`workspace-picker` 只把它们当描述符）。
+- 若将来要恢复：走 `DocumentViewPicker`（URI 一次性授权）或重新声明 + Profile 授权，**不要**只改 Profile。
+
+> ⚠️ 历史结论（保留取证）：这两项是 `user_grant`，装完本来就没授权；旧版本 `browse` 必然 `EACCES`，
+> 姊妹工程四台机器全部如此（`docs/01` REV-8/10/11）。
 
 ## 4. 装机与授权：实测记录
 
@@ -267,10 +270,9 @@ hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -A2 DOCUMENTS_D
 
 ## 8. 后续路线（均**未**实施）
 
-1. **重签 Profile，把两项目录权限从 `acls.allowed-acls` 移除**（最省事，推荐先做）：它们不需要 ACL；
-   移除后不会再产生 `flag 2 / status -1` 的矛盾态，运行期申请即可正常弹窗（§5.2 已证明复位就能弹）。
-   该权限 `provisionEnable: true`，另一条路是把它们放进 `permissions` 做**预授权** ⇒ 装完即授予、无需弹窗，
-   代价是「用户没有拒绝权」，且改 profile 需重新签名重装。
+1. **重签 Profile，把两项目录权限从 `acls.allowed-acls` 移除**（2026-10-20 R2 起声明面已删除，Profile 里若仍留着属多余授权）：
+   移除后不会再产生 `flag 2 / status -1` 的矛盾态。**注意**：声明面已删除 ⇒ 运行期申请会被平台拒绝（§5 的弹窗路径不再适用）；
+   要恢复功能只能走下面第 2 条，或重新声明 + Profile 授权（`provisionEnable: true` 也可做预授权，代价是用户没有拒绝权）。
 2. **改走系统选择器**：`DocumentViewPicker` 取一次性授权 URI，无需任何目录权限。
    现状：ArkTS 侧未实现 `picker.DocumentViewPicker`（本工程只有 `perm.openAppInfo` 与 `shell.openExternal`）。
 3. **如实呈现**：`ENOENT`（设备没有该目录）与 `EACCES`（没授权）已分开（`result: 'missing'` vs `'not-granted'`），
@@ -294,9 +296,8 @@ ACL 只决定**内存权限**，不影响原生库与载荷：`libnode.so`（120
 
 **Profile 面（重签时收敛）**：`acls.allowed-acls` 只应保留 `jit` 变体真正需要的那一项。
 
-- `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` 是 `normal` + `user_grant`，**不需要 ACL**，
-  保留**声明**（选择器运行期授权），但 MUST 从 `allowed-acls` 移除 —— 否则会再次出现
-  §5.1 的 `flag 2 / status -1` 矛盾态。
+- `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` **已从声明面移除**（2026-10-20 R2）；Profile 里若仍有这两项，
+  属**多余授权**，重签时一并删除。
 - 以现有调试 Profile 装 `compat` HAP：Profile 里多出的 ACL 属**多余授权**，不影响装机；
   真正的零 ACL 验收需要重签一份不含任何 `acls` 的 Profile。
 
