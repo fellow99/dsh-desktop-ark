@@ -5,7 +5,7 @@
  * 为什么不放运行时：这是**文件替换**而不是模块 hook —— 可审计（文件里有标记）、
  * 对 ESM/CJS 都生效、且与 S6 的落点（同名包替换）保持一致。
  */
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -134,6 +134,42 @@ async function syncDirectoryBestEffort(dir) {
   if (!readFileSync(file, 'utf8').includes(MARK)) throw new Error(`S5 补丁后标记缺失：${file}`)
   log('补丁 S5：dsh-attachment-local 目录 fsync 改为沙箱边界 best-effort')
   return file
+}
+
+/**
+ * 把 `packages/*-ohos` 的源码同步进载荷的 `node_modules/@dsh-ohos/<name>`。
+ *
+ * 为什么需要：`assemble-payload` 的 overlay 只在**重新装配**时做这一步，而日常
+ * `build-hap.sh` 只跑 `sync-payload` + `package-payload`。少了这一步，改过的插件
+ * （例如这次的 host-bridge / attachment-image）会留在源码里、归档仍是旧版本 ——
+ * 实测踩到：修好 `image.normalize` 后设备仍跑旧包。
+ * @param {string} root - 工程根（含 packages/）
+ * @param {string} stage
+ * @param {(line: string) => void} [log]
+ * @returns {string[]} 同步的包名
+ */
+export function syncOhosPackages(root, stage, log = () => {}) {
+  const src = join(root, 'packages')
+  if (!existsSync(src)) return []
+  const synced = []
+  for (const entry of readdirSync(src, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !entry.name.endsWith('-ohos')) continue
+    const dir = join(src, entry.name)
+    const manifestPath = join(dir, 'package.json')
+    if (!existsSync(manifestPath)) continue
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    const name = typeof manifest.name === 'string' ? manifest.name : ''
+    if (!name.startsWith('@dsh-ohos/')) continue
+    const dest = join(stage, 'node_modules', name)
+    rmSync(dest, { recursive: true, force: true })
+    mkdirSync(dest, { recursive: true })
+    cpSync(manifestPath, join(dest, 'package.json'))
+    if (existsSync(join(dir, 'lib'))) cpSync(join(dir, 'lib'), join(dest, 'lib'), { recursive: true })
+    if (existsSync(join(dir, 'cordis.patch.yml'))) cpSync(join(dir, 'cordis.patch.yml'), join(dest, 'cordis.patch.yml'))
+    synced.push(name)
+  }
+  if (synced.length > 0) log(`seam 插件已同步：${synced.length} 个（${synced.join(', ')}）`)
+  return synced
 }
 
 export { MARKER as FLOCK_STUB_MARKER, SHARP_SOURCE };

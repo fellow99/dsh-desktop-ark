@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyFlockShim, applySharpShim, applyAttachmentDurabilityPatch } from './lib/payload-shims.mjs';
+import { applyFlockShim, applySharpShim, applyAttachmentDurabilityPatch, syncOhosPackages } from './lib/payload-shims.mjs';
 import { gzipSync } from 'node:zlib';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -30,6 +30,8 @@ function fail(message) {
 
 // 物化期垫片必须在归档之前落到 stage 里（S3：flock 单进程替身）。
 try {
+  // 先同步源码包，再装物化期垫片（顺序不能反：S4 的包装指向 @dsh-ohos/attachment-image）。
+  syncOhosPackages(ROOT, STAGE, (line) => console.log(`[package-payload] ${line}`));
   applyFlockShim(STAGE, (line) => console.log(`[package-payload] ${line}`));
   applySharpShim(STAGE, (line) => console.log(`[package-payload] ${line}`));
   applyAttachmentDurabilityPatch(STAGE, (line) => console.log(`[package-payload] ${line}`));
