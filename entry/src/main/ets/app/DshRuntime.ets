@@ -11,6 +11,7 @@ import {
 import { Constants } from '../common/Constants';
 import { Probe } from './Probe';
 import { HostCapabilities } from '../host/HostCapabilities';
+import { resolve as resolveNodeMode, NodeModeDecision } from '../common/NodeMode';
 
 /** 启动编排阶段（与 `specs/overall-data-model.md` §3 一致） */
 export enum LaunchPhase {
@@ -89,6 +90,9 @@ export class DshRuntime {
     this.launched = true;
     const runtime: NodeRuntime = NodeRuntime.getInstance();
     const launchedAt: number = Date.now();
+    // 109-jitless：形态是编译期常量；这里只解析一次并打事实（不含任何运行期切换）。
+    const mode: NodeModeDecision = resolveNodeMode();
+    this.log('node mode: ' + mode.describe());
 
     try {
       this.enter(LaunchPhase.PREPARING, '正在准备运行目录…');
@@ -116,7 +120,9 @@ export class DshRuntime {
         // --expose-internals：垫片 S6 靠它替代无 OHOS 目标的 node-addon-require-builtin
         // （app-boot 的 profile 解析要读 internal/modules/*）。缺它 ⇒ Host 启动即失败。
         flags: '--no-verify-heap --expose-internals',
-        jitless: false,
+        // 109-jitless：compat 形态由库在脚本路径前插入 --jitless（库契约 §2.3）；
+        // jit 形态保持现状（不带 --jitless）。
+        jitless: mode.jitless(),
         env: {
           DSH_OHOS_HOME: Constants.dshHome(context),
           DSH_HOME: Constants.dshHome(context),

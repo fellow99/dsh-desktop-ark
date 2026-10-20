@@ -3,7 +3,7 @@
 | 项 | 内容 |
 |---|---|
 | 日期 | 2026-10-20（首版 2026-10-20，同日按姊妹工程最新实测重评） |
-| 状态 | **可行的备选路线；本版不采用** —— 不是「做不到」，而是「本版不需要付这个代价」 |
+| 状态 | **已采用为默认形态（109-jitless，2026-10-20）** —— 默认 `compat`（`--jitless`，零 ACL 声明）；`jit` 仍作为另一编译期变体保留 |
 | 适用工程 | `dsh-desktop-ark`（DSH Desktop · HarmonyOS Edition：ArkTS 宿主 + ArkWeb 前端 + 进程内 Node 24.2.0 + dsh Host） |
 | 关联 | [`ACL配置.md`](ACL配置.md)、[`010-真机调试记录.md`](010-真机调试记录.md)、`docs/000-工程规划.md` §10 |
 | 判定口径 | ✅ 真机或本机实测 ｜ 🔶 沿用他工程实测 ｜ ⚠️ 推断（有证据链但未直接验证） ｜ ⬜ 未取证 |
@@ -11,6 +11,12 @@
 ---
 
 ## 1. 一句话结论
+
+> **2026-10-20 更新（需求 109-jitless）**：本方案已落地为**默认形态**。
+> ArkTS 侧用编译期常量 `BuildConfig.NODE_MODE = 'compat'`，载荷侧装纯 JS `fetch` 兼容层
+> （`payload/jitless/**`，仅在 `WebAssembly === undefined` 时动作），ACL 声明面收敛为 0 项；
+> 实测与验收见 [`../specs/109-jitless/`](../specs/109-jitless/) 与 [`109-jitless-方案决策.md`](109-jitless-方案决策.md)。
+> 下面保留原始评估（决策依据与代价量化）。
 
 **本工程离零 ACL 只差一处代码（纯 JS `fetch` 垫片），而且这条路已经被姊妹工程走通并量产。**
 
@@ -26,10 +32,10 @@
 
 ## 2. 现役权限面（本次定稿）
 
-- `requestPermissions`：**9 项**（8 项本工程声明 + `GET_NETWORK_INFO` 由 `@fellow99/node-bridge` HAR 合并）
-- `definePermissions`：`kernel.ALLOW_WRITABLE_CODE_MEMORY`
+- `requestPermissions`（**历史数字，109-jitless 前**）：9 项（8 项本工程声明 + `GET_NETWORK_INFO`）。**现为 compat 8 / jit 9**（JIT 仅 jit 变体声明）
+- `definePermissions`（历史）：`kernel.ALLOW_WRITABLE_CODE_MEMORY`。**现为 compat 空 / jit 1 项**
 - Ability 后台模式：`taskKeeping`
-- **现役 ACL 只有 1 项**：`ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY`
+- **现役 ACL**：compat **0 项** / jit 1 项（`kernel.ALLOW_WRITABLE_CODE_MEMORY`）
 
 **2026-10-20 撤销的 4 项**（详见 `ACL配置.md` §3）：`READ_PASTEBOARD`、`READ_WRITE_DESKTOP_DIRECTORY`
 （两项都是需 ACL 的 `system_basic`）、`FILE_ACCESS_PERSIST`、`kernel.EXEMPT_ANONYMOUS_EXECUTABLE_MEMORY`（后两项无使用点）。
@@ -200,6 +206,19 @@ grep -n "globalThis.fetch" build/payload-stage/dsh/node_modules/@deepseek-ai/dsh
 # → 658: this.fetchImpl = options.fetch ?? globalThis.fetch
 ```
 
-**结论**：本版**保留** `kernel.ALLOW_WRITABLE_CODE_MEMORY`（现役唯一 ACL）。零 ACL 是一条
+**结论（历史，已被 109-jitless 取代）**：~~保留 `kernel.ALLOW_WRITABLE_CODE_MEMORY`~~；现默认 compat 不声明该权限（见 §11 与 `ACL配置.md` §10）。零 ACL 是一条
 **代价已量化（1 处垫片 + 7–10× 解释器开销 + code-mode 不可用）、且有量产先例（姊妹工程）**的备选路线；
 若将来要上「ACL 申请不下来」的机型，按 §7 的 P0→P4 推进，每阶段判据必须实测，不得以「应该可以」代替。
+
+---
+
+## 11. 落地记录（109-jitless，2026-10-20）
+
+| 项 | 结果 |
+|---|---|
+| 载荷兼容层 | `payload/jitless/{index.js,fetch-shim.js,http-lazy-undici.js,selfcheck.js}`（纯 JS，零第三方依赖） |
+| 安装判据 | 仅 `typeof WebAssembly === 'undefined'`；WASM 可用时**零动作**（jit 对照臂实测 `active=false`） |
+| 本机自检 | `node --jitless payload/jitless/selftest.mjs` → PASS（GET / POST JSON / SSE 分块 / Abort / FormData / 惰性 getter 封印） |
+| 启动自检 | `compat` 下每次启动跑一次回环自检，事实写 `app.log` 与 `ready.json#compat.selfcheck`（≈195 ms） |
+| 形态切换 | `node scripts/set-node-mode.mjs jit|compat`（幂等；同步 `BuildConfig.NODE_MODE` 与 `module.json5` 声明面） |
+| 未覆盖 | `libreoffice-kit`（WASM worker，功能未挂载）、code-mode 类能力：如实失败，不伪造成功 |

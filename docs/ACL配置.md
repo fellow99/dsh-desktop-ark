@@ -5,6 +5,10 @@
 > **权威数据**：本机 SDK 的权限目录 `sdk/default/openharmony/toolchains/lib/PermissionDefinitions.json`（第一手）；
 > 设备侧副本 `/system/etc/access_token/permission_definitions.json`（实测读取，见 §5.2）。
 > **零 ACL 方案评估**：见 [`ACL-无ACL评估.md`](ACL-无ACL评估.md)。**真机调试记录**：见 [`010-真机调试记录.md`](010-真机调试记录.md)。
+> **2026-10-20 二次修订（需求 109-jitless）**：默认运行形态改为 **compat（`--jitless`，零 ACL 声明）**；
+> JIT ACL 只属于 `jit` 变体（`node scripts/set-node-mode.mjs jit`）。详见 §10 与
+> [`../specs/109-jitless/spec.md`](../specs/109-jitless/spec.md)。
+>
 > **2026-10-20 修订**：按姊妹工程 `pi-desktop-ark` 最新三份文档（`001-能力复刻评估.md` REV-8/9/10/11、
 > `ACL配置.md` §5、`ACL-无ACL评估.md` §10）重新评估，并补上本工程自己的两条新实测：
 > **① 运行期授权为何会「没有任何应答」**（§5）；**② `checkAccessTokenSync` 的已知假阴性**（§6）。
@@ -13,9 +17,9 @@
 
 | 项 | 内容 |
 |---|---|
-| `requestPermissions` | **9 项**（HAP 内实测：8 项本工程声明 + `GET_NETWORK_INFO` 由 `@fellow99/node-bridge` HAR 随依赖合并进来） |
+| `requestPermissions` | **compat 8 项 / jit 9 项**（7 项常驻本工程 + `GET_NETWORK_INFO` 由 HAR 合并；JIT 权限仅 `jit` 变体声明） |
 | 其中带 `reason` + `usedScene` | **5 项**（`EntryAbility` / `inuse`）：`PREPARE_APP_TERMINATE`、`INHERIT_PARENT_PERMISSION`、`kernel.IGNORE_LIBRARY_VALIDATION`、`READ_WRITE_DOCUMENTS_DIRECTORY`、`READ_WRITE_DOWNLOAD_DIRECTORY`（文案在 `base/element/string.json`） |
-| `definePermissions` | `kernel.ALLOW_WRITABLE_CODE_MEMORY`（受限权限两处成对出现） |
+| `definePermissions` | **compat：空 / jit：`kernel.ALLOW_WRITABLE_CODE_MEMORY`**（受限权限两处成对出现） |
 | Ability 后台模式 | `EntryAbility.backgroundModes = ["taskKeeping"]` |
 
 本工程自有的 8 项：
@@ -29,7 +33,7 @@
 | 5 | `kernel.IGNORE_LIBRARY_VALIDATION` | normal | system_grant | **false** | ❌ | 加载随包 `libnode.so` / `libnode_bridge.so` 时跳过库校验（同上，开放权限） |
 | 6 | `READ_WRITE_DOCUMENTS_DIRECTORY` | normal | **user_grant** | true | ❌ | 工作区选择器「文档」Tab（运行期授权） |
 | 7 | `READ_WRITE_DOWNLOAD_DIRECTORY` | normal | **user_grant** | true | ❌ | 工作区选择器「下载」Tab（运行期授权） |
-| 8 | `kernel.ALLOW_WRITABLE_CODE_MEMORY` | **system_basic** | system_grant | true | ✅ **需 ACL** | 进程内 Node/V8 的 JIT（无它不带 `--jitless` 即 SIGTRAP） |
+| 8 | `kernel.ALLOW_WRITABLE_CODE_MEMORY` | **system_basic** | system_grant | true | ✅ **需 ACL** | 进程内 Node/V8 的 JIT（无它不带 `--jitless` 即 SIGTRAP）。**仅 `jit` 变体声明**；默认 compat 不声明 |
 
 依赖合并进来的 1 项：`GET_NETWORK_INFO`（normal / system_grant，来自 `ohos-node-bridge/library/src/main/module.json5`，不随本工程声明面维护）。
 
@@ -49,7 +53,7 @@
 本工程的调试 Profile 里它们确实在 `acls.allowed-acls` 中（见 §4.1），这与 §5 的「安装后 `grantFlag=2`」高度相关，
 是下次重签时要收敛的项。姊妹工程的 Profile 只有 JIT 一项，`permissions: []`。
 
-## 3. 现役 ACL：**1 项**
+## 3. 现役 ACL：**compat 0 项 / jit 1 项**
 
 | # | 权限 | 用途 | 缺失后果（实测） |
 |---|---|---|---|
@@ -278,3 +282,35 @@ ACL 只决定**内存权限**，不影响原生库与载荷：`libnode.so`（120
 （委托 `ohos-node-bridge/tools/provision.mjs`，七项 ELF 门禁 + SHA-256 对账）投放进 `entry/libs/arm64-v8a/`；
 `libnode_bridge.so` 随 `@fellow99/node-bridge` HAR 打包；载荷 `dsh.tar.gz` 由 `scripts/assemble-payload.mjs` 生成、
 `resfile` 随包分发，运行时由 `payload/bootstrap.js` 自解包（垫片 S1–S6）。
+
+## 10. 109-jitless：默认 compat（零 ACL 声明）
+
+| 项 | 内容 |
+|---|---|
+| 形态开关 | `entry/src/main/ets/common/BuildConfig.ets` 的 `NODE_MODE`（编译期常量，默认 `compat`） |
+| 切换命令 | `node scripts/set-node-mode.mjs jit|compat`（同时改常量与 `module.json5` 的 JIT 声明面，幂等） |
+| `compat` | 不声明 `ALLOW_WRITABLE_CODE_MEMORY`；库注入 `--jitless`；载荷装纯 JS `fetch` 兼容层 |
+| `jit` | 成对声明该权限；不带 `--jitless`；兼容层零动作 |
+
+**Profile 面（重签时收敛）**：`acls.allowed-acls` 只应保留 `jit` 变体真正需要的那一项。
+
+- `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` 是 `normal` + `user_grant`，**不需要 ACL**，
+  保留**声明**（选择器运行期授权），但 MUST 从 `allowed-acls` 移除 —— 否则会再次出现
+  §5.1 的 `flag 2 / status -1` 矛盾态。
+- 以现有调试 Profile 装 `compat` HAP：Profile 里多出的 ACL 属**多余授权**，不影响装机；
+  真正的零 ACL 验收需要重签一份不含任何 `acls` 的 Profile。
+
+**复验（重签后必做）**：
+
+```bash
+# 1) HAP 声明面：compat 变体必须没有 JIT 权限
+unzip -p entry/build/default/outputs/default/entry-default-signed.hap module.json | grep -c ALLOW_WRITABLE_CODE_MEMORY   # → 0
+# 2) 设备授权面
+hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -A1 -E "WRITABLE|DOCUMENTS|DOWNLOAD"
+# 3) 运行形态事实
+hdc shell cat /data/app/el2/100/base/org.fellow99.dsh.DshDesktopArk/haps/entry/files/payload/ready.json
+#    → compat.active=true, webAssembly=undefined, fetch=installed, selfcheck.status=ok
+```
+
+**既有实测（2026-10-20，本机）**：`node --jitless` 下兼容层自检 7/7 通过（GET、POST JSON、SSE 分块、
+Abort、FormData、惰性 getter 封印、`fetch` 可用），耗时 ≈195 ms；jit 对照臂 `active=false`（零动作）。

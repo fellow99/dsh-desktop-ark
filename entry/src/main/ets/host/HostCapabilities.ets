@@ -3,6 +3,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { HostBridge } from '@fellow99/node-bridge';
 import { Constants } from '../common/Constants';
+import { resolve as resolveNodeMode } from '../common/NodeMode';
 
 interface NameArgs {
   name?: string;
@@ -157,7 +158,8 @@ export class HostCapabilities {
         paths,
         userDirs: HostCapabilities.userDirs(),
         capabilities: HostCapabilities.capabilities(),
-        jitless: false
+        // 109-jitless：如实上报本次进程形态（compat ⇒ true），不得写死
+        jitless: resolveNodeMode().jitless()
       };
       return JSON.stringify(payload);
     } catch (error) {

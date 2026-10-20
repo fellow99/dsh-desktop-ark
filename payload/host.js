@@ -28,20 +28,21 @@ const { createRequire } = require('node:module');
  * }} ctx
  */
 async function start(ctx) {
-  const { runRoot, version, shims, sqlite, log, writeReady } = ctx;
+  const { runRoot, version, shims, sqlite, compat, log, writeReady } = ctx;
   const dshHome = process.env.DSH_HOME || path.join(process.env.HOME || '/', 'dsh-home');
   // profile 留在运行根内：ESM 从该目录向上只会在 <runRoot>/node_modules 命中 @dsh-ohos/*。
   const projectDir = path.join(runRoot, 'profiles', 'ohos');
   const userPatch = path.join(dshHome, 'user-patch.yml');
   const dshManifest = path.join(runRoot, 'node_modules', '@deepseek-ai', 'dsh', 'package.json');
 
-  writeReady({ phase: 'starting', sha12: version.sha12, shims: shims.map((s) => s.marker) });
+  writeReady({ phase: 'starting', sha12: version.sha12, shims: shims.map((s) => s.marker), compat });
 
   if (!fs.existsSync(dshManifest)) {
     writeReady({
       phase: 'payload-missing',
       diagnostic: `缺少上游包：${dshManifest}`,
-      shims: shims.map((s) => s.marker)
+      shims: shims.map((s) => s.marker),
+      compat
     });
     return;
   }
@@ -55,7 +56,7 @@ async function start(ctx) {
   } catch (error) {
     const message = error && error.stack ? error.stack : String(error);
     log(`host: resolve upstream failed: ${message}`);
-    writeReady({ phase: 'failed', diagnostic: `解析上游包失败：${message}`, shims: shims.map((s) => s.marker) });
+    writeReady({ phase: 'failed', diagnostic: `解析上游包失败：${message}`, shims: shims.map((s) => s.marker), compat });
     return;
   }
 
@@ -79,7 +80,7 @@ async function start(ctx) {
     if (!Number.isInteger(port) || port <= 0) {
       const diagnostic = `webServer.port 非法：${String(port)}`;
       log(`host: ${diagnostic}`);
-      writeReady({ phase: 'failed', diagnostic, shims: shims.map((s) => s.marker) });
+      writeReady({ phase: 'failed', diagnostic, shims: shims.map((s) => s.marker), compat });
       return;
     }
     const origin = `http://127.0.0.1:${String(port)}`;
@@ -88,7 +89,7 @@ async function start(ctx) {
     if (token === '') {
       const diagnostic = 'authenticatedUrl 未携带一次性 token';
       log(`host: ${diagnostic}`);
-      writeReady({ phase: 'failed', diagnostic, shims: shims.map((s) => s.marker) });
+      writeReady({ phase: 'failed', diagnostic, shims: shims.map((s) => s.marker), compat });
       return;
     }
 
@@ -101,6 +102,8 @@ async function start(ctx) {
       sha12: version.sha12,
       shims: shims.map((s) => s.marker),
       sqlite,
+      // 109-jitless：形态事实（active / webAssembly / fetch / selfcheck）随公告对外可见。
+      compat,
       roots: {
         payload: runRoot,
         dshHome,
@@ -112,7 +115,7 @@ async function start(ctx) {
   } catch (error) {
     const message = error && error.stack ? error.stack : String(error);
     log(`host: runProfile failed: ${message}`);
-    writeReady({ phase: 'failed', diagnostic: `启动 dsh Host 失败：${message}`, shims: shims.map((s) => s.marker) });
+    writeReady({ phase: 'failed', diagnostic: `启动 dsh Host 失败：${message}`, shims: shims.map((s) => s.marker), compat });
   }
 }
 

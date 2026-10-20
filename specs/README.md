@@ -122,6 +122,17 @@
 | 功能规格 | [108-compliance-release/spec.md](./108-compliance-release/spec.md) | `FR-108-*` |
 | 技术方案 | [108-compliance-release/plan.md](./108-compliance-release/plan.md) | 权限基线、构建参数 |
 
+### 109 — 无 JIT 模式（JIT-less / compat）
+
+> 编译期形态开关（默认 `compat`）、纯 JS `fetch` 兼容层、零 ACL 声明面。
+
+| 文档 | 链接 | 说明 |
+|---|---|---|
+| 功能规格 | [109-jitless/spec.md](./109-jitless/spec.md) | `FR-109-*` |
+| 技术方案 | [109-jitless/plan.md](./109-jitless/plan.md) | 形态常量、兼容层、切换脚本 |
+| 任务分解 | [109-jitless/tasks.md](./109-jitless/tasks.md) | `T-109-*` |
+| 测试用例 | [109-jitless/test-cases.md](./109-jitless/test-cases.md) | `TC-109-*` |
+
 ---
 
 ## 五、模块编号一览
@@ -136,6 +147,7 @@
 | 106 | 工作区选择 | Workspace Picker | 适配（planned） |
 | 107 | 诊断与可观测 | Diagnostics & Observability | 工程 |
 | 108 | 合规与发布 | Compliance & Release | 发布 |
+| 109 | 无 JIT 模式 | JIT-less (compat) | 运行时 |
 
 ---
 

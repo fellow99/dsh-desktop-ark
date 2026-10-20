@@ -2,7 +2,9 @@
 # 构建 HAP：同步载荷 → ohpm install（首次）→ hvigorw assembleHap。
 #
 # 用法：
-#   bash scripts/build-hap.sh [--debug|--release]
+#   bash scripts/build-hap.sh [--debug|--release] [--node-mode jit|compat]
+#   109-jitless：--node-mode 会先调用 scripts/set-node-mode.mjs（同步 BuildConfig 常量与
+#   module.json5 的 JIT 声明面），再构建；不传则沿用当前源码里的形态。
 # 环境：
 #   OHOS_CLT        DevEco Command Line Tools 根（默认 D:/oh-workspace/command-line-tools-6）
 #   DEVECO_SDK_HOME SDK 根（默认 $OHOS_CLT/sdk）
@@ -12,16 +14,23 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLT="${OHOS_CLT:-D:/oh-workspace/command-line-tools-6}"
 BUILD_MODE="debug"
-for arg in "$@"; do
-  case "$arg" in
-    --release) BUILD_MODE="release" ;;
-    --debug) BUILD_MODE="debug" ;;
-    *) echo "[build-hap] 未知参数：$arg" >&2; exit 2 ;;
+NODE_MODE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --release) BUILD_MODE="release" ; shift ;;
+    --debug) BUILD_MODE="debug" ; shift ;;
+    --node-mode) NODE_MODE="${2:-}" ; shift 2 ;;
+    --node-mode=*) NODE_MODE="${1#*=}" ; shift ;;
+    *) echo "[build-hap] 未知参数：$1" >&2; exit 2 ;;
   esac
 done
-
 export DEVECO_SDK_HOME="${DEVECO_SDK_HOME:-$CLT/sdk}"
 export PATH="$CLT/tool/node:$PATH"
+
+# 109-jitless：形态切换放到 PATH 就绪之后，保证 node 可用
+if [ -n "$NODE_MODE" ]; then
+  node "$ROOT/scripts/set-node-mode.mjs" "$NODE_MODE"
+fi
 
 echo "[build-hap] mode=$BUILD_MODE sdk=$DEVECO_SDK_HOME"
 

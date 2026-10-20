@@ -73,6 +73,52 @@ function installExceptionHandlers() {
   });
 }
 
+/**
+ * 109-jitless：安装纯 JS 兼容层（只在 `WebAssembly === undefined` 时真正接管）。
+ *
+ * 失败绝不阻断启动：记一行事实并返回 failed 形态；`fetch` 是否可用由自检如实上报。
+ */
+function installCompatLayer() {
+  try {
+    const { installIfNeeded } = require('./jitless');
+    return installIfNeeded(log);
+  } catch (error) {
+    const detail = error && error.stack ? error.stack : String(error);
+    log(`jitless: 兼容层加载失败（继续启动）：${detail}`);
+    return {
+      active: false,
+      webAssembly: typeof WebAssembly === 'undefined' ? 'undefined' : 'defined',
+      httpLazy: 'failed',
+      sealed: [],
+      fetch: 'failed',
+      globals: {},
+      fetchImpl: null,
+      loadFailed: true
+    };
+  }
+}
+
+/** compat 形态下做一次回环自检（GET/POST/SSE/Abort/FormData），结果进 app.log 与 ready.json。
+ *  评审 #2：总预算 1200 ms（超时只记 timeout），且调用点移到 `preparing` 公告之后。 */
+async function runCompatSelfCheck(compat, budgetMs) {
+  if (compat.loadFailed === true) {
+    return { status: 'not-run', cases: [], detail: 'compat 层加载失败' };
+  }
+  if (compat.active !== true) {
+    return { status: 'skipped', cases: [] };
+  }
+  try {
+    const { runSelfCheck } = require('./jitless/selfcheck.js');
+    // 全局接管失败时用 fetchImpl 直连：把「垫片坏了」与「接管坏了」分开取证（评审 #5）。
+    const options = typeof compat.fetchImpl === 'function' ? { budgetMs, fetch: compat.fetchImpl } : { budgetMs };
+    return await runSelfCheck(log, options);
+  } catch (error) {
+    const detail = error && error.stack ? error.stack : String(error);
+    log(`jitless: 自检执行失败（不阻断启动）：${detail}`);
+    return { status: 'failed', cases: [], detail };
+  }
+}
+
 function installShims() {
   const shims = [];
   const fsLink = require('./shims/fs-link.js');
@@ -179,11 +225,17 @@ async function main() {
   installExceptionHandlers();
   log(`bootstrap: start (readonlyRoot=${READONLY_ROOT || '-'}, assetDir=${ASSET_DIR})`);
 
+  // 109-jitless：兼容层必须在任何 fetch 使用之前安装；WASM 可用时它一个动作都不做。
+  const compat = installCompatLayer();
+
   const shims = installShims();
   const sqlite = require('./shims/sqlite.js').install(log);
   const version = readVersion();
 
-  writeReady({ phase: 'preparing', sha12: version.sha12 || '', shims: shims.map((s) => s.marker) });
+  writeReady({ phase: 'preparing', sha12: version.sha12 || '', shims: shims.map((s) => s.marker), compat });
+
+  // 自检放在 preparing 公告之后，并带总预算：绝不拖住启动（FR-109-017 / 评审 #2）。
+  compat.selfcheck = await runCompatSelfCheck(compat, 1200);
 
   const runRoot = resolveRunRoot(version);
   if (runRoot === null) {
@@ -194,7 +246,7 @@ async function main() {
       `期望运行根：${path.join(PAYLOAD_ROOT, 'dsh')}`,
       `这是 000-scaffold 的预期状态：载荷由 scripts/assemble-payload.mjs 生成。`
     ].join('\n');
-    writeReady({ phase: 'payload-missing', diagnostic, shims: shims.map((s) => s.marker) });
+    writeReady({ phase: 'payload-missing', diagnostic, shims: shims.map((s) => s.marker), compat });
     log(`bootstrap: payload-missing. ${diagnostic}`);
     return;
   }
@@ -204,7 +256,7 @@ async function main() {
   const profileDir = path.join(runRoot, 'profiles', 'ohos');
   if (!fs.existsSync(path.join(profileDir, 'package.json'))) {
     const detail = `载荷缺少 profiles/ohos：${profileDir}`;
-    writeReady({ phase: 'failed', diagnostic: detail, shims: shims.map((s) => s.marker) });
+    writeReady({ phase: 'failed', diagnostic: detail, shims: shims.map((s) => s.marker), compat });
     log(`bootstrap: ${detail}`);
     return;
   }
@@ -225,6 +277,7 @@ async function main() {
     version,
     shims: shims.map((s) => ({ marker: s.marker, installed: s.installed === true })),
     sqlite,
+    compat,
     log,
     writeReady
   });
