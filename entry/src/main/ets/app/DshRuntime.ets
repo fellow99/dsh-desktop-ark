@@ -11,6 +11,7 @@ import {
 import { Constants } from '../common/Constants';
 import { Probe } from './Probe';
 import { HostCapabilities } from '../host/HostCapabilities';
+import { INSPECT_PORT } from '../common/BuildConfig';
 import { resolve as resolveNodeMode, NodeModeDecision } from '../common/NodeMode';
 
 /** 启动编排阶段（与 `specs/overall-data-model.md` §3 一致） */
@@ -119,7 +120,10 @@ export class DshRuntime {
         logPath: Constants.payloadRoot(context) + '/node.log',
         // --expose-internals：垫片 S6 靠它替代无 OHOS 目标的 node-addon-require-builtin
         // （app-boot 的 profile 解析要读 internal/modules/*）。缺它 ⇒ Host 启动即失败。
-        flags: '--no-verify-heap --expose-internals',
+        // 204-plugin-git：debug 取证通道（`INSPECT_PORT`，0 = 关闭）。只绑回环，
+        // 设备外需 `hdc fport` 才能连；不改变任何业务行为（spec FR-204-050/051）。
+        flags: '--no-verify-heap --expose-internals'
+          + (INSPECT_PORT > 0 ? ` --inspect=127.0.0.1:${INSPECT_PORT}` : ''),
         // 109-jitless：compat 形态由库在脚本路径前插入 --jitless（库契约 §2.3）；
         // jit 形态保持现状（不带 --jitless）。
         jitless: mode.jitless(),

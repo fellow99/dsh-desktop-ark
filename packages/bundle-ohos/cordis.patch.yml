@@ -77,6 +77,14 @@
           - documents
           - download
 
+    # 204-plugin-git：设备没有 git 二进制，把纯 JS 的 isomorphic-git 嵌入宿主进程。
+    # 这一行同时交付两件事：
+    #   ① 21 个 git 工具注册进 ctx.tools（宿主平面，对 agent 可见）；
+    #   ② dsh.client 声明被 client-modules 扫描到，「Git 凭据」设置页进入启动图。
+    # isomorphic-git 闭包由 scripts/assemble-payload.mjs 的 collectGitRuntime() 物化到
+    # node_modules/@dsh-ohos/git/node_modules/（嵌套，避免覆盖载荷顶层的 pako 等同名包）。
+    - id: git
+      name: '@dsh-ohos/git'
     # 宿主通知与诊断
     - id: notify-ohos
       name: '@dsh-ohos/notify'

@@ -161,11 +161,32 @@ export function syncOhosPackages(root, stage, log = () => {}) {
     const name = typeof manifest.name === 'string' ? manifest.name : ''
     if (!name.startsWith('@dsh-ohos/')) continue
     const dest = join(stage, 'node_modules', name)
-    rmSync(dest, { recursive: true, force: true })
-    mkdirSync(dest, { recursive: true })
-    cpSync(manifestPath, join(dest, 'package.json'))
-    if (existsSync(join(dir, 'lib'))) cpSync(join(dir, 'lib'), join(dest, 'lib'), { recursive: true })
-    if (existsSync(join(dir, 'cordis.patch.yml'))) cpSync(join(dir, 'cordis.patch.yml'), join(dest, 'cordis.patch.yml'))
+    // 生成物保护（204-plugin-git）：插件自己的 `node_modules/` 是**构建期物化**的产物
+    // （`collectGitRuntime()` 把 isomorphic-git 闭包放进去），不是源码。源码同步只该覆盖
+    // 源码面（package.json / lib / cordis.patch.yml / README），因此先把生成的 node_modules
+    // 移开、复制完再移回 —— 否则这里的一次 rmSync 会把整个闭包删掉，归档里就只剩插件壳，
+    // 设备上表现为「所有 git 工具报依赖不可装载」。
+    const generatedModules = join(dest, 'node_modules')
+    const stash = join(stage, '..', `.sync-stash-${entry.name}`)
+    const hasGenerated = existsSync(generatedModules)
+    if (hasGenerated) {
+      rmSync(stash, { recursive: true, force: true })
+      renameSync(generatedModules, stash)
+    }
+    try {
+      rmSync(dest, { recursive: true, force: true })
+      mkdirSync(dest, { recursive: true })
+      cpSync(manifestPath, join(dest, 'package.json'))
+      if (existsSync(join(dir, 'lib'))) cpSync(join(dir, 'lib'), join(dest, 'lib'), { recursive: true })
+      if (existsSync(join(dir, 'cordis.patch.yml'))) cpSync(join(dir, 'cordis.patch.yml'), join(dest, 'cordis.patch.yml'))
+      if (existsSync(join(dir, 'README.md'))) cpSync(join(dir, 'README.md'), join(dest, 'README.md'))
+      if (existsSync(join(dir, 'README_zh.md'))) cpSync(join(dir, 'README_zh.md'), join(dest, 'README_zh.md'))
+    } finally {
+      if (hasGenerated) {
+        rmSync(generatedModules, { recursive: true, force: true })
+        renameSync(stash, generatedModules)
+      }
+    }
     synced.push(name)
   }
   if (synced.length > 0) log(`seam 插件已同步：${synced.length} 个（${synced.join(', ')}）`)

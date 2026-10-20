@@ -35,6 +35,13 @@ try {
   applyFlockShim(STAGE, (line) => console.log(`[package-payload] ${line}`));
   applySharpShim(STAGE, (line) => console.log(`[package-payload] ${line}`));
   applyAttachmentDurabilityPatch(STAGE, (line) => console.log(`[package-payload] ${line}`));
+  // 204-plugin-git：isomorphic-git 闭包是 `collectGitRuntime()` 的产物，只会由装配链路物化；
+  // 归档前在这里断言一次，避免「源码同步把生成物删掉」这类静默退化把没有闭包的包发到设备上。
+  const gitNested = join(STAGE, 'node_modules/@dsh-ohos/git/node_modules/isomorphic-git/package.json');
+  if (existsSync(join(STAGE, 'node_modules/@dsh-ohos/git/package.json')) && !existsSync(gitNested)) {
+    fail(`@dsh-ohos/git 缺少物化的 isomorphic-git 闭包：${gitNested}`
+      + '（先跑 node scripts/assemble-payload.mjs --deploy --apply 或 --from <树> --apply）');
+  }
 } catch (error) {
   fail(`垫片安装失败：${error instanceof Error ? error.message : String(error)}`);
 }

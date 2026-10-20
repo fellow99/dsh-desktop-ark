@@ -276,6 +276,145 @@ function prunePayload(stage) {
   log(`剪裁：移除 ${removedFiles} 个文件 / ${(removedBytes / 1048576).toFixed(1)} MiB`);
 }
 
+/**
+ * 204-plugin-git：isomorphic-git 的版本 pin。
+ *
+ * 唯一可改点 —— 插件侧 `packages/git-ohos/lib/runtime.js` 的 `ISOMORPHIC_GIT_VERSION` 必须与
+ * 此值一致（装载时断言），升级要同时改两处并重跑本脚本 + 真机回归。
+ */
+const ISOMORPHIC_GIT_VERSION = '1.44.2';
+
+/** `diff` 由宿主依赖闭包提供（上游四个包声明 `diff ^9.0.0`），本工程**不物化**第二份。 */
+const HOST_DIFF_MAJOR = 9;
+
+/** 闭包里 `package.json` 的最小数量；低于它就说明 pnpm 只装了直接依赖。 */
+const GIT_CLOSURE_MIN_PACKAGES = 50;
+
+/**
+ * 204-plugin-git：把 isomorphic-git 及其整棵依赖闭包物化到**插件自己的** `node_modules/`。
+ *
+ * 为什么嵌套而不是平铺到载荷顶层：载荷顶层已有 `pako@0.2.9`（isomorphic-git 需要 1.x）等同名包，
+ * 平铺会覆盖它们从而破坏上游。嵌套后 Node 从 `@dsh-ohos/git/lib/*.js` 向上第一跳即命中本闭包，
+ * 与载荷顶层绝不互相影响。
+ *
+ * 为什么 `diff` 不在此列：上游 `dsh-tool-fs` 等四个包已声明 `diff ^9.0.0`，载荷顶层就有
+ * `diff@9.0.0`；再物化一份会同名冲突且多 0.8 MiB。插件只在 `peerDependencies` 声明它。
+ *
+ * 调用点：`overlay()` 内、`collectOhosPackages()` **之后**（插件目录必须先存在）。
+ * 失败一律抛错（不用 `process.exit`），由调用点统一 `fail()`，以保证 staging 清理。
+ *
+ * @param {string} stage - 载荷 stage 根（含 `node_modules/`）。
+ * @returns {{dir: string, packages: number, bytes: number}} 落位、闭包包数、字节数。
+ */
+function collectGitRuntime(stage) {
+  const pluginDir = resolve(stage, 'node_modules/@dsh-ohos/git');
+  if (!existsSync(resolve(pluginDir, 'package.json'))) {
+    throw new Error(`204-plugin-git: 插件目录缺失 ${pluginDir}（collectOhosPackages() 必须先跑）`);
+  }
+
+  const dest = resolve(pluginDir, 'node_modules');
+  const installedManifest = resolve(dest, 'isomorphic-git/package.json');
+
+  // 快路径：目标已完整物化且版本一致。常规链路不可达（stage 每次重建），只服务于
+  // 「单独二次调用 collectGitRuntime()」的幂等验证。
+  if (existsSync(installedManifest)) {
+    const actual = JSON.parse(readFileSync(installedManifest, 'utf8')).version;
+    if (actual === ISOMORPHIC_GIT_VERSION) {
+      const stats = countTree(dest);
+      log(`git 运行时已在位：isomorphic-git@${actual}（${stats.files} 个文件 / ${(stats.bytes / 1048576).toFixed(1)} MiB）`);
+      assertGitRuntimeArtifact(stage);
+      return { dir: dest, packages: countPackages(dest), bytes: stats.bytes };
+    }
+    rmSync(dest, { recursive: true, force: true });
+  }
+
+  const staging = resolve(WORK, 'git-runtime');
+  rmSync(staging, { recursive: true, force: true });
+  mkdirSync(staging, { recursive: true });
+  try {
+    writeFileSync(resolve(staging, 'package.json'), `${JSON.stringify({
+      name: 'dsh-ohos-git-runtime',
+      private: true,
+      version: '0.0.0',
+      description: 'Staging tree for the isomorphic-git closure materialized into @dsh-ohos/git/node_modules.',
+    }, null, 2)}\n`);
+    run(`pnpm add isomorphic-git@${ISOMORPHIC_GIT_VERSION} --config.node-linker=hoisted --ignore-scripts`, staging);
+
+    const source = resolve(staging, 'node_modules');
+    if (!existsSync(resolve(source, 'isomorphic-git/package.json'))) {
+      throw new Error(`204-plugin-git: pnpm 未产出 isomorphic-git（${source}）`);
+    }
+    mkdirSync(dest, { recursive: true });
+    // 扁平闭包整体复制：dereference 把 pnpm 可能留下的链接换成真实文件（设备上没有链接语义）。
+    cpSync(source, dest, { recursive: true, dereference: true });
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+
+  assertGitRuntimeArtifact(stage);
+  const stats = countTree(dest);
+  log(`git 运行时已物化：isomorphic-git@${ISOMORPHIC_GIT_VERSION} → node_modules/@dsh-ohos/git/node_modules`
+    + `（${countPackages(dest)} 包 / ${stats.files} 个文件 / ${(stats.bytes / 1048576).toFixed(1)} MiB）`);
+  return { dir: dest, packages: countPackages(dest), bytes: stats.bytes };
+}
+
+/** 统计一棵树里的 `package.json` 数量（= 包数，scope 目录自身不算）。 */
+function countPackages(dir) {
+  let count = 0;
+  const walk = (current, depth) => {
+    if (depth > 4) return;
+    let entries;
+    try {
+      entries = readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = resolve(current, entry.name);
+      if (entry.isDirectory()) walk(full, entry.name.startsWith('@') ? depth : depth + 1);
+      else if (entry.name === 'package.json') count += 1;
+    }
+  };
+  walk(dir, 0);
+  return count;
+}
+
+/**
+ * 204-plugin-git 的产物断言（AC-204-11 / AC-204-12）。任一条不成立即抛错。
+ *
+ * @param {string} stage - 载荷 stage 根。
+ */
+function assertGitRuntimeArtifact(stage) {
+  const nested = resolve(stage, 'node_modules/@dsh-ohos/git/node_modules');
+  const manifest = resolve(nested, 'isomorphic-git/package.json');
+  if (!existsSync(manifest)) throw new Error(`204-plugin-git: 缺少 ${manifest}`);
+  const actual = JSON.parse(readFileSync(manifest, 'utf8')).version;
+  if (actual !== ISOMORPHIC_GIT_VERSION) {
+    throw new Error(`204-plugin-git: isomorphic-git 版本 ${actual} 与 pin ${ISOMORPHIC_GIT_VERSION} 不一致`);
+  }
+  // exports 里的 `./http/node` 是本插件实际使用的 HTTP 客户端面；缺它等于闭包不完整。
+  const httpNode = resolve(nested, 'isomorphic-git/http/node/index.js');
+  const httpNodeCjs = resolve(nested, 'isomorphic-git/http/node/index.cjs');
+  if (!existsSync(httpNode) && !existsSync(httpNodeCjs)) {
+    throw new Error('204-plugin-git: isomorphic-git 缺 http/node 入口');
+  }
+  const packages = countPackages(nested);
+  if (packages < GIT_CLOSURE_MIN_PACKAGES) {
+    throw new Error(`204-plugin-git: git 闭包只有 ${packages} 个包（下限 ${GIT_CLOSURE_MIN_PACKAGES}），pnpm 可能只装了直接依赖`);
+  }
+  if (existsSync(resolve(nested, 'diff'))) {
+    throw new Error('204-plugin-git: 插件自带的 node_modules 内出现了 diff —— 它必须由宿主闭包提供（AC-204-12）');
+  }
+  const hostDiff = resolve(stage, 'node_modules/diff/package.json');
+  if (!existsSync(hostDiff)) {
+    throw new Error(`204-plugin-git: 载荷顶层缺少 diff（${hostDiff}）：本插件依赖宿主闭包渲染 unified diff`);
+  }
+  const hostMajor = Number.parseInt(String(JSON.parse(readFileSync(hostDiff, 'utf8')).version).split('.')[0], 10);
+  if (hostMajor !== HOST_DIFF_MAJOR) {
+    throw new Error(`204-plugin-git: 载荷顶层 diff 主版本为 ${hostMajor}，插件按 ${HOST_DIFF_MAJOR} 编写`);
+  }
+}
+
 /** 本工程维护的 seam 插件包（packages/<name>-ohos/）物化为 @dsh-ohos/<name>。 */
 function collectOhosPackages(stage) {
   const destRoot = resolve(stage, 'node_modules/@dsh-ohos');
@@ -516,6 +655,14 @@ function overlay(stage) {
 
   const plugins = collectOhosPackages(stage);
   log(`seam 插件已注入：${plugins.length} 个（${plugins.join(', ')}）`);
+
+  // 204-plugin-git：isomorphic-git 闭包必须物化在插件自己的 node_modules 下（见 collectGitRuntime）。
+  // 顺序不能反 —— 它要求 @dsh-ohos/git 目录已存在。
+  try {
+    collectGitRuntime(stage);
+  } catch (error) {
+    fail(1, `204-plugin-git 运行时物化失败：${error instanceof Error ? error.message : String(error)}`);
+  }
 
   installRequireBuiltinShim(stage);
   try {

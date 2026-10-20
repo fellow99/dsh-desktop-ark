@@ -32,6 +32,14 @@ if [ -n "$NODE_MODE" ]; then
   node "$ROOT/scripts/set-node-mode.mjs" "$NODE_MODE"
 fi
 
+# 204-plugin-git：调试口按构建类型改写（debug=19229 / release=0；源码默认 0）。
+# 放在这里而不是让开发者手改常量：release 构建不依赖任何人记得关。
+INSPECT_PORT="0"
+if [ "$BUILD_MODE" = "debug" ]; then
+  INSPECT_PORT="19229"
+fi
+node "$ROOT/scripts/set-inspect.mjs" "$INSPECT_PORT"
+
 echo "[build-hap] mode=$BUILD_MODE sdk=$DEVECO_SDK_HOME"
 
 # 1) HAR 依赖（缺失则现场构建）
