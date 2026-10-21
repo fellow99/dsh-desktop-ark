@@ -1,0 +1,26 @@
+{
+  "name": "@dsh-ohos/market",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH Desktop（Ark 版）插件市场运行时：向 dsh-market 提供 desktopProfiles / desktopPnpm 契约，并在同一进程的 worker 线程中运行随包物化的纯 JS pnpm 引擎（不 spawn 子进程）。",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "README.md",
+    "README_zh.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "license": "MIT"
+}

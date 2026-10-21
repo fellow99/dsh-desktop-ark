@@ -228,6 +228,11 @@ async function main() {
   // 109-jitless：兼容层必须在任何 fetch 使用之前安装；WASM 可用时它一个动作都不做。
   const compat = installCompatLayer();
 
+  // 012/201：worker 是新的 realm —— V8 开关与模块全局各线程一份，主线程装过的兼容层带不过去。
+  // 只把入口路径交出去，由 worker 在自己的 realm 里按同一判据（WebAssembly 缺失）安装。
+  process.env.DSH_OHOS_JITLESS_ENTRY = path.join(ASSET_DIR, 'jitless', 'index.js');
+  log(`jitless: worker 兼容层入口 ${process.env.DSH_OHOS_JITLESS_ENTRY}`);
+
   const shims = installShims();
   const sqlite = require('./shims/sqlite.js').install(log);
   const version = readVersion();

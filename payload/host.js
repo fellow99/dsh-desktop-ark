@@ -27,6 +27,74 @@ const { createRequire } = require('node:module');
  *   writeReady: (payload: object) => void
  * }} ctx
  */
+/**
+ * 012-pnpm-integration / 201-dsh-market：把进程内 pnpm 的运行时前提准备好。
+ *
+ * 三件事，全部幂等，失败只记日志（它们不改变 Host 能否启动，只改变「能不能装插件」）：
+ *   1) `DSH_PNPM_ENGINE` 指向随包物化的纯 JS pnpm 入口；
+ *   2) profile 的 `pnpm-workspace.yaml` 缺失时创建（hoisted / copy / 不装 peer / 不跑脚本）；
+ *   3) 建出 store 与 cache 目录（两者都必须落在沙箱内）。
+ *
+ * `storeDir` 必须是绝对路径：设备上 `process.cwd()` 是 `/`，相对路径会解析到沙箱外。
+ *
+ * @param {{ runRoot: string, profileDir: string, log: (line: string) => void }} options
+ */
+function configureMarketRuntime(options) {
+  const { runRoot, profileDir, log } = options;
+  const engine = path.join(runRoot, 'node_modules', 'dsh-market-pnpm', 'bin', 'pnpm.cjs');
+  process.env.DSH_PNPM_ENGINE = engine;
+  log(`market: DSH_PNPM_ENGINE=${engine}`);
+
+  const storeDir = path.join(profileDir, '.pnpm-store');
+  const configFile = path.join(profileDir, 'pnpm-workspace.yaml');
+  try {
+    if (!fs.existsSync(configFile)) {
+      // `autoInstallPeers: false`：缺 peer 时走 dsh 的运行时解析，所有插件共用安装里那一份 cordis
+      // （与上游 app-boot 的 profile 模板同一语义）。`ignoreScripts`：平台既不能编译也不能 spawn。
+      const body = [
+        'packages:',
+        '  - .',
+        '',
+        'nodeLinker: hoisted',
+        'autoInstallPeers: false',
+        'packageImportMethod: copy',
+        'ignoreScripts: true',
+        'minimumReleaseAge: 0',
+        `storeDir: ${JSON.stringify(storeDir)}`,
+        '',
+      ].join('\n');
+      fs.writeFileSync(configFile, body);
+      log(`market: wrote pnpm config ${configFile} (storeDir=${storeDir})`);
+    } else {
+      // 已经存在就保留用户/市场的其它键，但 `storeDir` 必须落在**本次** profile 之下：
+      // 开发机上跑过冒烟会把当时的绝对路径留在文件里，随包发出去后设备上会指向沙箱外，
+      // 每次安装都失败且无法自愈。只重写这一行，其余原样保留。
+      const current = fs.readFileSync(configFile, 'utf8');
+      const match = /^storeDir:\s*(.+)$/m.exec(current);
+      const configured = match === null ? '' : match[1].trim().replace(/^["']|["']$/g, '');
+      if (configured !== storeDir) {
+        const rewritten = match === null
+          ? `${current.trimEnd()}\nstoreDir: ${JSON.stringify(storeDir)}\n`
+          : current.replace(match[0], `storeDir: ${JSON.stringify(storeDir)}`);
+        fs.writeFileSync(configFile, rewritten);
+        log(`market: storeDir 修正为 ${storeDir}（原值 ${configured === '' ? '(未设置)' : configured}）`);
+      } else {
+        log(`market: pnpm config kept as-is ${configFile}`);
+      }
+    }
+  } catch (error) {
+    log(`market: pnpm config unavailable (continuing): ${error && error.message ? error.message : String(error)}`);
+  }
+
+  for (const dir of [storeDir, path.join(profileDir, '.pnpm-cache')]) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch (error) {
+      log(`market: cannot create ${dir} (continuing): ${error && error.message ? error.message : String(error)}`);
+    }
+  }
+}
+
 async function start(ctx) {
   const { runRoot, version, shims, sqlite, compat, log, writeReady } = ctx;
   const dshHome = process.env.DSH_HOME || path.join(process.env.HOME || '/', 'dsh-home');
@@ -34,6 +102,9 @@ async function start(ctx) {
   const projectDir = path.join(runRoot, 'profiles', 'ohos');
   const userPatch = path.join(dshHome, 'user-patch.yml');
   const dshManifest = path.join(runRoot, 'node_modules', '@deepseek-ai', 'dsh', 'package.json');
+  // 012/201：进程内 pnpm 的运行时前提（引擎入口 + profile pnpm 配置）。必须在 runProfile 之前，
+  // 因为 profile 的组合与行配置在 runProfile 内一次性读取。
+  configureMarketRuntime({ runRoot, profileDir: projectDir, log });
 
   writeReady({ phase: 'starting', sha12: version.sha12, shims: shims.map((s) => s.marker), compat });
 

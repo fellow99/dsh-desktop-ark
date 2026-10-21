@@ -105,6 +105,14 @@
     # node_modules/@dsh-ohos/git/node_modules/（嵌套，避免覆盖载荷顶层的 pako 等同名包）。
     - id: git
       name: '@dsh-ohos/git'
+
+    # 201-dsh-market / 012-pnpm-integration：插件市场的进程内安装通道。
+    # 这一行只提供 desktopProfiles / desktopPnpm 两个服务（dsh-market 用 ctx.get 特性检测），
+    # pnpm 引擎由 scripts/assemble-payload.mjs 的 collectMarketPNPM() 物化到
+    # node_modules/dsh-market-pnpm，运行期在 worker 线程内执行（不 spawn 子进程）。
+    # 必须在 dshmarket 行（profile bundles 末位）之前激活，市场才能检测到契约。
+    - id: market-ohos
+      name: '@dsh-ohos/market'
     # 宿主通知与诊断
     - id: notify-ohos
       name: '@dsh-ohos/notify'
