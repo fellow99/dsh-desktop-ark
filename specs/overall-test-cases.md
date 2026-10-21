@@ -136,7 +136,7 @@ AC-<模块号>-<序号>       验收场景（spec §5 的标题），与 TC 一�
 | TC-106-003 | 用户目录缺失时显示不可用与重试，不回退 | L2 | 截图 |
 | TC-106-004 | 面包屑最高到主目录根，无法上溯 | L2 | 操作序列 |
 | TC-106-005 | 无手动路径输入入口 | L2 | 截图 |
-| TC-106-006 | 未授权时对话框内可申请，成功后自动重试。**R4 复验**：系统授权框真实弹出（含 `$string:documents_dir` 文案）；点「允许」后自动列目录待用户手动确认 | L2 | 截图 + `atm dump` |
+| TC-106-006 | 未授权时对话框内可申请，成功后自动重试。**R4 复验通过**：系统授权框真实弹出（含 `$string:documents_dir` 文案），点「允许」后自动列目录（用户手动复验 2026-10-21；`atm dump` → `grantStatus=0`） | L2 | 截图 + `atm dump` |
 | TC-106-007 | 只记忆主目录 id，不记忆子路径 | L2 | 重开截图 |
 | TC-106-008 | 选中的路径可被 `createWorkspace` 采纳 | L2 | 会话创建成功 |
 
@@ -200,7 +200,7 @@ AC-<模块号>-<序号>       验收场景（spec §5 的标题），与 TC 一�
 | G7 | 图像桥 | TC-104-001 + `packages/attachment-image-ohos/test/smoke.mjs` + 图片对话 | **已通过**（真机图片对话 4 s，S4→宿主 `image.normalize`） |
 | G8 | 包体预算 | TC-108-004 | 已通过（86 MB） |
 | G9 | addon 加载（S6） | TC-102-004、TC-107-005 | 已通过 |
-| G10 | 用户目录可读写 | TC-106-003/006 | **R4 起重新适用**：目录权限已重新声明，授权框可弹出；「允许」后列目录待手动复验 |
+| G10 | 用户目录可读写 | TC-106-003/006 | **已通过（R4，2026-10-21 用户手动复验）**：授权框可弹出，点「允许」后文档/下载目录正常列出，`atm dump` 两项 `grantStatus=0` |
 
 ---
 
@@ -211,7 +211,7 @@ AC-<模块号>-<序号>       验收场景（spec §5 的标题），与 TC 一�
 | 2026-10-20 | R1 | 109-jitless 双形态（本机 + 真机） | 11/12 通过，1 项未挂载 | `logs/20261020-2/TEST_REPORT.md` |
 | 2026-10-20 | R2 | 全量单元测试（17 套）+ 真机基本功能（API Key/工作区/文本对话/图片对话）+ GIT 仓库可达性 | **单元 17/17 通过；文本与图片对话均通过**；修复 6 个真机阻断缺陷（S3/S4/S5、桥信封、raw()、归档 mtime）；应用内 git 不可用（能力缺口） | `logs/20261020-3/{TEST_REPORT.md,UNIT_TESTS.txt}` |
 | 2026-10-20 | R3 | 声明面收敛：移除 `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` | 声明面 6 项（5 自有 + HAR）；`atm dump` 无三项；选择器两根如实报未授权，`请求权限` → `authResult=2` | `logs/20261020-3/TEST_REPORT.md` §8 |
-| 2026-10-21 | R4 | 声明面全量对齐参考工程 `pi-desktop-ark`（20 项：补 `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY`、`CUSTOM_SCREEN_CAPTURE`、`GYROSCOPE`、`ACCELEROMETER` 等；JIT ACL 仍仅 jit 变体） | 零 ACL Profile 装机成功；`phase=ready`；自检 7/7；HAP `module.json` 20 项无重复；`atm dump` 20 项在册（17 授予 / 3 项 `user_grant` 为 `-1`）、`ALLOW_WRITABLE_CODE_MEMORY` 不存在；选择器「文档」系统授权框真实弹出 | `logs/20261020-3/TEST_REPORT.md` §10 |
+| 2026-10-21 | R4 | 声明面全量对齐参考工程 `pi-desktop-ark`（20 项：补 `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY`、`CUSTOM_SCREEN_CAPTURE`、`GYROSCOPE`、`ACCELEROMETER` 等；JIT ACL 仍仅 jit 变体） | 零 ACL Profile 装机成功；`phase=ready`；自检 7/7；HAP `module.json` 20 项无重复；`atm dump` 20 项在册、`ALLOW_WRITABLE_CODE_MEMORY` 不存在；选择器「文档」系统授权框真实弹出，**授权后目录正常列出（用户手动复验通过）**，`atm dump` → 两项 `grantStatus=0` | `logs/20261020-3/TEST_REPORT.md` §10 |
 
 > 敏感信息（API Key、带账号仓库的用户名/口令、内网地址）**不写入**本文件与任何提交物；设备侧运行期
 > 配置属一次性测试数据，不入库。

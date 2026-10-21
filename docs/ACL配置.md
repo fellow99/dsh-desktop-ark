@@ -371,7 +371,11 @@ R4 的 `atm dump -t` 为 **20 项在册、17 项 `grantStatus=0`**，未授予�
 
 **R4 附加观测（真机）**：声明补齐后，选择器「文档」目录**确实弹出了系统授权框**
 （标题「允许"DSH Desktop"访问你的"文档"文件夹？」，正文取自 `$string:documents_dir`）——
-这是 R3 做不到的（那时平台直接拒绝，`authResult=2`）。授权按钮的点击结果留待用户手动确认（TC-106-006）。
+这是 R3 做不到的（那时平台直接拒绝，`authResult=2`）。
+**授权结果（用户手动复验，2026-10-21 通过）**：点「允许」后目录可正常列出，`atm dump` 随之变为
+`READ_WRITE_DOCUMENTS_DIRECTORY` / `READ_WRITE_DOWNLOAD_DIRECTORY` 均 `grantStatus=0`、`grantFlag=2`
+（与 §5.2 的「授予后 flag 变 2」一致）；`CUSTOM_SCREEN_CAPTURE` 未申请，仍为 `-1`。
+注：此前用 `uitest uiInput click` 程序化点「允许」未生效（弹框关闭但状态未变），故该步以人工点按为准。
 
 **既有实测（2026-10-20，本机）**：`node --jitless` 下兼容层自检 7/7 通过（GET、POST JSON、SSE 分块、
 Abort、FormData、惰性 getter 封印、`fetch` 可用），耗时 ≈195 ms；jit 对照臂 `active=false`（零动作）。
