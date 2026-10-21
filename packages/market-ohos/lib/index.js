@@ -15,8 +15,9 @@
  * @module @dsh-ohos/market
  */
 
-import { existsSync, statSync } from 'node:fs'
-import { isAbsolute } from 'node:path'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { isAbsolute, join } from 'node:path'
 import {
   assertPnpmEngine,
   getLastRun,
@@ -56,6 +57,73 @@ export function launchedProfile(profileContext) {
 }
 
 /**
+ * 读一个 package.json（读不到/坏 JSON 返回 null，不抛）。
+ * @param {string} file - absolute path.
+ * @returns {any} parsed manifest or null.
+ */
+function readManifest(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 把 profile 的 `dsh.profile.bundles` 与它自己的依赖对齐 —— 这是「宿主负责激活」里
+ * **持久化**的那一半（我们在 `pluginActivation.activate()` 里调用它）。
+ *
+ * 规则：
+ * 1. 依赖里声明了 `dsh.bundle` 且已装进 profile 的包，追加到 bundles 末尾（保持既有顺序）；
+ * 2. 一行只有在「装进了 profile」或「能从安装锚点解析」时才保留 —— 卸载后既不在 profile 里、
+ *    也不在安装闭包里的行必须移除，否则下次启动会打一行 “cannot resolve profile bundle”
+ *    （`@deepseek-ai/dsh-base` 这类安装态 bundle 走第二条保留）；
+ * 3. 其它行原样保留。
+ *
+ * @param {string} profileDir - absolute profile directory.
+ * @param {string} [installAnchor] - absolute path of the running dsh's package.json.
+ * @returns {{ changed: boolean, bundles: string[] }} what happened.
+ */
+export function reconcileProfileBundles(profileDir, installAnchor = '') {
+  const manifestPath = join(profileDir, 'package.json')
+  const manifest = readManifest(manifestPath)
+  const bundles = manifest?.dsh?.profile?.bundles
+  if (!Array.isArray(bundles)) return { changed: false, bundles: [] }
+
+  const dependencies = Object.keys(manifest.dependencies ?? {})
+  const installed = (name) => existsSync(join(profileDir, 'node_modules', ...name.split('/'), 'package.json'))
+  // 安装闭包里的 bundle（dsh-base / dsh-web-app / @dsh-ohos/bundle / dshmarket）从这条锚点解析。
+  let resolveFromAnchor = () => false
+  if (installAnchor !== '') {
+    try {
+      const anchorRequire = createRequire(installAnchor)
+      resolveFromAnchor = (name) => {
+        try {
+          anchorRequire.resolve(`${name}/package.json`)
+          return true
+        } catch {
+          return false
+        }
+      }
+    } catch {
+      resolveFromAnchor = () => false
+    }
+  }
+  const next = [...bundles]
+  for (const name of dependencies) {
+    if (next.includes(name) || !installed(name)) continue
+    const pkg = readManifest(join(profileDir, 'node_modules', ...name.split('/'), 'package.json'))
+    if (pkg?.dsh?.bundle === undefined) continue
+    next.push(name)
+  }
+  const kept = next.filter((name) => installed(name) || resolveFromAnchor(name))
+  if (JSON.stringify(kept) === JSON.stringify(bundles)) return { changed: false, bundles: kept }
+  manifest.dsh.profile.bundles = kept
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
+  return { changed: true, bundles: kept }
+}
+
+/**
  * Publish `desktopProfiles` / `desktopPnpm` on the host context before the
  * market bundle mounts.
  *
@@ -72,7 +140,9 @@ export function apply(ctx) {
     }
   }
 
-  const launched = launchedProfile(ctx.get('profileContext'))
+  const profileContext = ctx.get('profileContext')
+  const launched = launchedProfile(profileContext)
+  const installAnchor = typeof profileContext?.installAnchor === 'string' ? profileContext.installAnchor : ''
   if (launched === null) {
     // Fail closed and loud: without a real profile directory the market would
     // silently install into the wrong place. Not providing the services sends
@@ -97,7 +167,37 @@ export function apply(ctx) {
     lastRun: null,
   }
 
-  ctx.provide('desktopProfiles', { current: { name: launched.name, dir: launched.dir } })
+  ctx.provide('desktopProfiles', {
+    current: { name: launched.name, dir: launched.dir },
+    /**
+     * 本宿主**不能**在线重放组合：`node::Start` 每进程一次、ArkWeb 的客户端模块图在页面加载时
+     * 固定，热挂载只会在“当前进程里多挂一份”，客户端那一半要刷新页面才可能出现，而刷新期间
+     * 任何一个子资源 404 都会让外壳显示整页错误（看起来像崩溃）。
+     *
+     * 因此如实声明“激活由宿主负责，但本宿主只支持重启生效”：市场会改走这条路径，
+     * 不再自己 hot-mount，安装/卸载后提示重启应用（这也是真机上唯一稳定生效的方式）。
+     */
+    pluginActivation: {
+      async activate() {
+        // 持久化由宿主负责：先把 bundles 与本 profile 的依赖对齐（装载/卸载都要），
+        // 再如实回答「本宿主不能在线重放，需重启」。
+        try {
+          const result = reconcileProfileBundles(launched.dir, installAnchor)
+          diagnostics.bundles = result.bundles
+          if (result.changed) log(`bundles reconciled: ${result.bundles.join(', ')}`)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          log(`bundle reconcile failed: ${message}`)
+          return { ok: false, error: `profile bundles 写入失败：${message}` }
+        }
+        return {
+          ok: false,
+          error: '插件已写入 profile；本宿主不支持在线重放，请退出并重新打开应用后生效'
+            + ' (installed into the profile; restart the app to activate — this host cannot replay the composition in place)',
+        }
+      },
+    },
+  })
 
   ctx.provide('desktopPnpm', {
     /**

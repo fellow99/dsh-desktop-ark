@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -11,7 +11,7 @@ import {
   resolveEngineEntry,
   runPnpmInProcess,
 } from '../lib/pnpm-inprocess.js'
-import { launchedProfile } from '../lib/index.js'
+import { launchedProfile, reconcileProfileBundles } from '../lib/index.js'
 
 /** A throwaway profile directory with one fake pnpm engine entry. */
 function fixture() {
@@ -105,4 +105,33 @@ test('cancel terminates the worker and reports a failure', async () => {
   const outcome = await handle.done
   assert.notEqual(outcome.exitCode, 0)
   assert.match(stderr, /cancelled/i)
+})
+
+test('reconcileProfileBundles adds installed bundle packages and drops unresolvable rows', () => {
+  const root = mkdtempSync(join(tmpdir(), 'market-bundles-'))
+  const profile = join(root, 'profiles', 'ohos')
+  const install = join(root, 'install', 'node_modules')
+  mkdirSync(join(profile, 'node_modules', 'skin-plugin'), { recursive: true })
+  mkdirSync(join(profile, 'node_modules', 'plain-plugin'), { recursive: true })
+  mkdirSync(join(install, '@deepseek-ai', 'dsh'), { recursive: true })
+  mkdirSync(join(install, '@deepseek-ai', 'dsh-base'), { recursive: true })
+  writeFileSync(join(install, '@deepseek-ai', 'dsh', 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh' }))
+  writeFileSync(join(install, '@deepseek-ai', 'dsh-base', 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh-base' }))
+  writeFileSync(join(profile, 'node_modules', 'skin-plugin', 'package.json'), JSON.stringify({ name: 'skin-plugin', dsh: { bundle: { patch: './cordis.patch.yml' } } }))
+  writeFileSync(join(profile, 'node_modules', 'plain-plugin', 'package.json'), JSON.stringify({ name: 'plain-plugin' }))
+  writeFileSync(join(profile, 'package.json'), JSON.stringify({
+    name: 'p',
+    dependencies: { 'skin-plugin': '1.0.0', 'plain-plugin': '1.0.0' },
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', 'gone-package'] } },
+  }))
+  const anchor = join(install, '@deepseek-ai', 'dsh', 'package.json')
+  const first = reconcileProfileBundles(profile, anchor)
+  assert.equal(first.changed, true)
+  // base bundle resolves from the installation anchor and stays; the removed one is dropped;
+  // only the bundle-declaring dependency is appended (a plain package never becomes a layer).
+  assert.deepEqual(first.bundles, ['@deepseek-ai/dsh-base', 'skin-plugin'])
+  const manifest = JSON.parse(readFileSync(join(profile, 'package.json'), 'utf8'))
+  assert.deepEqual(manifest.dsh.profile.bundles, ['@deepseek-ai/dsh-base', 'skin-plugin'])
+  // idempotent
+  assert.equal(reconcileProfileBundles(profile, anchor).changed, false)
 })

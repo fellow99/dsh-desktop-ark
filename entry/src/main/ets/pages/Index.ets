@@ -101,7 +101,16 @@ struct Index {
           return true;
         })
         .onErrorReceive((event: OnErrorReceiveEvent): void => {
-          this.detail = `页面加载失败：${event.error.getErrorInfo()}`;
+          // 只有**主文档**失败才算「页面打不开」。子资源失败（插件客户端模块、图标、API 请求、
+          // 市场热挂载/卸载瞬间的 404/405）由 dsh 前端自己处理；把它们也当整页失败，会让一次
+          // 插件装卸就弹出全屏「页面加载失败」，看起来像整个应用崩溃。
+          const url: string = event.request.getRequestUrl();
+          const info: string = event.error.getErrorInfo();
+          if (!event.request.isMainFrame()) {
+            console.warn(`[DSH_DESKTOP_ARK] 子资源加载失败（不影响页面）：${info} ${url}`);
+            return;
+          }
+          this.detail = `页面加载失败：${info}`;
           this.showOverlay = true;
         })
         .onControllerAttached((): void => {

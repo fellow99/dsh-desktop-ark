@@ -57,6 +57,8 @@
 - **FR-201-020**：文档 MUST 披露：`git:` 源插件、需 lifecycle 构建脚本的插件不可安装；市场的「放行构建脚本并重试」在本宿主无效。
 - **FR-201-021**：文档 MUST 披露：profile 位于载荷内，换包（新 sha12 目录）后已安装插件不保留。
 - **FR-201-022**：构建期 MUST 拒绝「源码比产物新」的 `dsh-market`（`src/*.ts` 新于 `lib/*.js` 即失败），避免打出缺路由的旧 `lib/`（现象：市场 UI 的某个动作返回 404/405）。
+- **FR-201-024**：安装/卸载 MUST 通过宿主的 `pluginActivation` 路径完成持久化，MUST NOT 在市场侧 hot mount（本宿主的客户端模块图不可在线重放）；UI MUST 提示“重启应用后生效”。
+- **FR-201-025**：ArkWeb 外壳 MUST 只在**主文档**加载失败时显示整页错误；子资源（插件客户端模块、图标、API）失败 MUST 只记录日志。
 - **FR-201-023**：权限预设的客户端卡片（`ui-permission`）MUST 与宿主 `permission` 行一同禁用：宿主行缺失时该卡片只会显示 `/api/permissionPresets/catalog` 的 404。
 
 ---
@@ -79,7 +81,8 @@
 - **未构建即硬失败**：Given 缺 `lib/index.js`；When 装配；Then 退出码 1 + 下一步命令。
 - **启动即接线**：Given 载荷解包完成；When Host 启动；Then `DSH_PNPM_ENGINE` 指向真实引擎；`<profileDir>/pnpm-workspace.yaml` 存在且含绝对 `storeDir`；日志出现「契约已提供」。
 - **设置页出现市场**：Given 应用就绪；When 打开设置；Then 有「插件市场」入口并能拉取目录（或如实记录网络不可达）。
-- **安装第一个插件**：When 点安装；Then `<profileDir>/node_modules/<pkg>/package.json` 出现，市场 UI 显示已安装，无 pnpm 子进程。
+- **安装第一个插件**：When 点安装；Then `<profileDir>/node_modules/<pkg>/package.json` 出现、`dsh.profile.bundles` 追加一行，市场 UI 提示「重启后生效」，无 pnpm 子进程、无整页错误。
+- **重启后生效**：When 重启应用；Then 新 bundle 行参与加载、插件客户端进入启动图。
 - **使用第一个插件**：When 按插件类型触发（工具或客户端面）；Then 功能可用（有证据）。
 - **卸载第一个插件**：When 点卸载；Then 目录消失、`dsh.profile.bundles` 对应行移除、重启后不复活。
 

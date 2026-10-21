@@ -13,7 +13,8 @@ Specs: [`specs/012-pnpm-integration`](../../specs/012-pnpm-integration/spec.md),
 
 | Service | Shape | Notes |
 |---|---|---|
-| `desktopProfiles` | `{ current: { name, dir } }` | `dir` comes **only** from `ctx.get('profileContext').dir`; when unusable the services are not published (the market then fails closed on its own CLI path) |
+| `desktopProfiles` | `{ current: { name, dir }, pluginActivation }` | `dir` comes **only** from `ctx.get('profileContext').dir`; when unusable the services are not published (the market then fails closed on its own CLI path) |
+| `pluginActivation.activate()` | resolves `{ ok: false, error }` | This host **cannot replay the composition in place**: it first reconciles `dsh.profile.bundles` against the profile's dependencies (append on install, drop dangling rows on uninstall) and then answers "restart to activate". The market therefore never hot-mounts here — that path refreshes the client module graph, and a subresource 404 during it used to be shown by the shell as a full-page failure |
 | `desktopPnpm` | `{ runPlugin(args, invokingDir, signal), probePnpm() }` | Returns `{ stdout, stderr, done, cancel }`; `args` pass through and `--dir <profile>` is appended; `invokingDir` is ignored |
 
 One operation at a time: a second concurrent call **throws synchronously** with
@@ -28,6 +29,7 @@ One operation at a time: a second concurrent call **throws synchronously** with
 
 ## Known limits
 
+- **Install/uninstall takes effect after an app restart** (see `pluginActivation`): the host persists the change only.
 - Under `--jitless` pnpm unpacks in pure JS; budget minutes per install (market timeout: 15 min).
 - The profile lives inside the payload generation, so installed plugins do not survive a HAP
   upgrade (design §8 R6).

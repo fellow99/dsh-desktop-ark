@@ -121,7 +121,9 @@ storeDir: <profileDir>/.pnpm-store   # 绝对路径，运行期拼
 
 1. **只认** `ctx.get('profileContext')` 的 `name` / `dir`（`ProfileContext` 定义见 `packages/boot/app-boot/src/profile-context.ts`）。`dir` 不是绝对路径、或不存在 ⇒ 打一行错误日志并**不 provide**（市场随即走普通 CLI 分支并显式失败，不静默）。
    *不做 `DSH_HOME` 回落*：本工程没有 `DSH_PROFILE_NAME`，回落只会拼出一个不存在的目录，让 pnpm 在空目录里「装成功」。
-2. `ctx.provide('desktopProfiles', { current: { name, dir } })`。
+2. `ctx.provide('desktopProfiles', { current: { name, dir }, pluginActivation })`：
+   `pluginActivation.activate()` 先做 **bundle 对账**（追加已装且声明 `dsh.bundle` 的依赖；移除既不在 profile、
+   也不能从 `installContext`/安装锚点解析的悬空行），再如实返回 `{ ok: false }` —— 本宿主不实现在线重放。
 3. `ctx.provide('desktopPnpm', { runPlugin, probePnpm })`。
 
 **`runPlugin(args, invokingDir, signal)` 的实际契约**（本宿主只被市场通过 `createDesktopPluginRuntime` 使用，`dsh-market/src/dsh-cli.ts:1341-1510`）：
@@ -315,5 +317,5 @@ bootstrap.js（主线程：异常兜底 → jitless 兼容层 → 垫片 → 解
 | R5 | `ignoreScripts: true` 使市场的「放行构建脚本并重试」无效 | 用户被引导到死路 | 文档与 UI 文案披露；`git:` 源同样不可装 |
 | R6 | 载荷分代 ⇒ 换包后已装插件消失（L1） | 升级体验 | 登记为已知限制；后续任务：profile 迁 `$DSH_HOME` 或代际接续 |
 | R7 | 安装通道绕过 `fs-sandbox`：pnpm 直接写 profile 目录 | 安全面扩大 | 安装目录由宿主固定为 profile，**不采信**市场传入的 `invokingDir`；`ignoreScripts` 关闭脚本执行 |
-| R8 | 无 `pluginActivation` 时市场固定等 8 s 再 hot mount，失败提示「重启应用」= 整应用重启 | 体验 / 验收口径 | 验收以「重启后仍可用」为退路；后续实现 `pluginActivation` 可去掉等待 |
+| R8 | 本宿主不能在线重放组合（`node::Start` 一次、ArkWeb 客户端模块图固定），插件装卸一律「重启生效」 | 体验（多一步重启） | 已实现 `pluginActivation` + bundle 对账：装卸即持久化、重启即生效；这是真机上唯一稳定路径 |
 | R9 | 市场的网络层换成纯 JS undici 替身后，`HTTP(S)_PROXY` 不再生效（`EnvHttpProxyAgent` 是空实现） | 需要代理的环境里市场请求直连并失败 | 设备侧不出网代理；如实登记于 `packages/market-ohos/README*.md`；若将来需要代理，在替身里补 CONNECT 隧道 |

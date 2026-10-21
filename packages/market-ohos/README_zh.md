@@ -14,7 +14,8 @@ DSH Desktop（Ark 版）的插件市场运行时：向 `dsh-market` 提供 `desk
 
 | 服务 | 形状 | 说明 |
 |---|---|---|
-| `desktopProfiles` | `{ current: { name, dir } }` | `dir` 只取 `ctx.get('profileContext').dir`（launcher 提供）。取不到 → 不 provide，市场回落到自己的 CLI 分支并显式失败 |
+| `desktopProfiles` | `{ current: { name, dir }, pluginActivation }` | `dir` 只取 `ctx.get('profileContext').dir`（launcher 提供）。取不到 → 不 provide，市场回落到自己的 CLI 分支并显式失败 |
+| `pluginActivation.activate()` | 返回 `{ ok: false, error }` | **本宿主不支持在线重放**：先把 `dsh.profile.bundles` 与本 profile 的依赖对账（装载时追加、卸载时移除悬空行），然后如实回答「重启后生效」。市场因此不再自己 hot-mount（真机上那条路会刷新客户端模块图，期间的子资源 404 会被外壳误当成整页失败） |
 | `desktopPnpm` | `{ runPlugin(args, invokingDir, signal), probePnpm() }` | `runPlugin` 返回 `{ stdout, stderr, done, cancel }`；`args` 原样透传并追加 `--dir <profile>`；`invokingDir` 被忽略 |
 
 并发：同一时刻只允许一次操作；第二次调用**同步抛错**，消息含
@@ -29,6 +30,7 @@ DSH Desktop（Ark 版）的插件市场运行时：向 `dsh-market` 提供 `desk
 
 ## 已知限制
 
+- **安装/卸载后需重启应用生效**（见上面的 `pluginActivation`）：宿主只做持久化，不做在线重放。
 - `--jitless` 下 pnpm 的解包是纯 JS，安装耗时按分钟级预算；市场侧超时 15 分钟。
 - profile 位于载荷内（按 sha12 分代）⇒ **换包后已安装的插件不保留**（设计 §8 R6）。
 - `ignoreScripts: true`：需要构建脚本的插件装不上；市场 UI 的「放行构建脚本并重试」在本宿主无效。

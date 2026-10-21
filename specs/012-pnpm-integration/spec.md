@@ -93,6 +93,7 @@
 - **FR-012-040**：运行期接线 MUST 幂等；除构建期断言外，运行期失败 MUST NOT 阻塞 Host 启动。
 - **FR-012-041**：本模块 MUST NOT 扩大权限面（零新增受限权限 / ACL）。
 - **FR-012-042**：安装 MUST 关闭 lifecycle 脚本（`ignoreScripts`），MUST NOT 执行插件作者代码。
+- **FR-012-044**：`desktopProfiles` MUST 同时发布 `pluginActivation`，其 `activate()` MUST 先对账 `dsh.profile.bundles`（追加已装且声明 `dsh.bundle` 的依赖；移除既不在 profile 也不能从安装锚点解析的行），再返回 `{ ok:false, error }` 声明本宿主只支持重启生效。
 - **FR-012-043**：构建期 MUST 把 `dshmarket/node_modules/undici` 替换为纯 JS 替身（`payload/shims/undici`，复用 109 的 `fetch-shim`）：市场直接 `import { fetch } from 'undici'`，`--jitless` 下原包每次请求都抛 `WebAssembly is not defined`。断言 MUST 校验替身标记（`dshOhosShim: pure-js-undici`）。
 
 ---
