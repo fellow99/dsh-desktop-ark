@@ -39,6 +39,7 @@
 | M-107 | 诊断与可观测 | [spec](./107-diagnostics-observability/spec.md) | [plan](./107-diagnostics-observability/plan.md) | 🟡 Partial | `payload/selfcheck.js`；`/_ohos/facts` 未实现 |
 | M-108 | 合规与发布 | [spec](./108-compliance-release/spec.md) | [plan](./108-compliance-release/plan.md) | 🟡 Partial | `module.json5`、`build-profile.json5`、`hvigorfile.ts` |
 | M-204 | 插件：GIT 操作（需求 204） | [spec](./204-plugin-git/spec.md) | [plan](./204-plugin-git/plan.md) | 🟡 Partial | `packages/git-ohos/**`（21 工具 + 设置页）、`scripts/assemble-payload.mjs` 的 `collectGitRuntime()`、`bundle-ohos` 一行、`scripts/set-inspect.mjs`；真机证据见 `logs/20261021-1/TEST_REPORT.md`（`/logs` 不入库） |
+| M-205 | 插件：品牌位（需求 205） | [spec](./205-plugin-branding/spec.md) | [plan](./205-plugin-branding/plan.md) | ✅ Done | `packages/branding-ohos/**`（host 半边：标题 + `style` 行；browser 半边：三个品牌槽位 + 标题守卫）、`packages/bundle-ohos/cordis.patch.yml`（挂载行 + 首次引导两行配置 + `ui-brand-official` 禁用）、`scripts/verify-upstream.mjs` 的 6/7/8 号门禁；证据：`verify-upstream` / `smoke-payload` 通过、宿主 Node 端到端 14 项断言（zh-CN + en-US）+ 负向对照；真机未验 |
 
 ---
 

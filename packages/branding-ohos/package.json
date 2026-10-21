@@ -1,0 +1,31 @@
+{
+  "name": "@dsh-ohos/branding",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH Desktop 品牌位（Ark 版）：侧栏 logo/名称、会话空态 hero 品牌位、页面标题与上游 hero 标语的替换（上游零补丁）。",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib/"
+  ],
+  "license": "MIT"
+}

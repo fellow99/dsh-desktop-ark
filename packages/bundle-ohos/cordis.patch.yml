@@ -45,6 +45,26 @@
 - id: permission
   disabled: true
 
+# ── 品牌与首次引导：按本产品身份交付，不把上游的预览提示与官方引导带给用户 ────────
+# 上游把这三处写死在界面/组件里，这里只用它自己的两个配置口 + 一个禁用口：
+#   ① `ui-settings-general.welcomeNoticeVersion` = 上游当前版本 ⇒ 预览提示视为已致谢
+#      （`WelcomeNotice` 仅当该值 ≠ 上游 `WELCOME_NOTICE_VERSION` 时弹出；本值由
+#      `scripts/verify-upstream.mjs` 对齐上游常量，上游改版本会先红，不静默漂移）；
+#   ② `ui-settings-models.credentialOnboarding: false` ⇒ DeepSeek 首次配置对话框不再
+#      自动弹出；组件保留，用户仍可从设置里手动进入（能力没被删掉，只去掉自动打扰）；
+#   ③ `ui-brand-official` 是上游的「官方 DeepSeek 品牌位」——本产品用自己的品牌位
+#      （`@dsh-ohos/branding`），并禁止构建环境切成 official 时冒出上游官方标识。
+- id: ui-settings-general
+  config:
+    welcomeNoticeVersion: '2026-09-28.1'
+
+- id: ui-settings-models
+  config:
+    credentialOnboarding: false
+
+- id: ui-brand-official
+  disabled: true
+
 - insert:
     # 进程与命令
     - id: subprocess-ohos
@@ -106,3 +126,9 @@
     - id: attachment-image-ohos
       name: '@dsh-ohos/attachment-image'
       disabled: true
+
+    # 品牌位（205-plugin-branding）：侧栏 logo/名称、会话空态 hero 品牌位、页面标题。
+    # 零补丁实现：Host 半边用 `webServer.tapIndex` + `webserver/index-inject`，
+    # 浏览器半边占用 `sidebar.brand.mark` / `sidebar.brand.name` / `conversation.hero.brand.mark`。
+    - id: branding-ohos
+      name: '@dsh-ohos/branding'

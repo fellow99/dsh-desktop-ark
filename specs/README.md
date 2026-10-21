@@ -14,9 +14,10 @@
 |---|---|---|---|
 | 整体 | 项目级顶层文档 | 6 | 索引、清单、结构、技术、架构、宪法 |
 | 整体 | 整体规格文档 | 4 | `overall-*` 系列 |
-| 模块 | 运行时与外壳（101–104） | 8 | 每个模块 `spec.md` + `plan.md` |
+| 模块 | 运行时与外壳（101–104、109） | 10 | 每个模块 `spec.md` + `plan.md` + `tasks.md` + `test-cases.md` |
 | 模块 | 适配与发布（105–108） | 8 | 每个模块 `spec.md` + `plan.md` |
-| **合计** | **10 根文件 / 8 模块目录 / 26 文件** | | |
+| 模块 | 插件（204、205） | 6 | `204` 四份（spec/plan/tasks/test-cases）；`205` 两份（spec/plan） |
+| **合计** | **10 根文件 / 11 模块目录 / 36 文件** | | |
 
 > 按需求约定，不生成 `API.md` 与 `overall-api.md`。
 
@@ -145,6 +146,16 @@
 | 任务分解 | [204-plugin-git/tasks.md](./204-plugin-git/tasks.md) | `T-204-*` |
 | 测试用例 | [204-plugin-git/test-cases.md](./204-plugin-git/test-cases.md) | `TC-204-*`（含脱敏纪律） |
 
+### 205 — 插件：品牌位（Branding Plugin）
+
+> 把 dsh Web UI 的产品身份换成本产品（侧栏 logo/名称、会话空态 hero 品牌位、页面/窗口标题），并关闭上游的预览提示与 DeepSeek 首次配置**自动**弹窗。
+> **上游零补丁**：只用槽位、自有 locale 命名空间、`webServer.tapIndex`、`webserver/index-inject` 的 `style` 行与上游两条配置项；Electron 版的 `dsh-rebrand` / `dsh-disable-welcome-notice` 补丁**不复用**。
+
+| 文档 | 链接 | 说明 |
+|---|---|---|
+| 功能规格 | [205-plugin-branding/spec.md](./205-plugin-branding/spec.md) | `FR-205-*` / `AC-205-*` / `NFR-205-*` |
+| 技术方案 | [205-plugin-branding/plan.md](./205-plugin-branding/plan.md) | 上游口子、隐藏规则锚点、标题守卫、门禁与降级 |
+
 ---
 
 ## 五、模块编号一览
@@ -161,6 +172,7 @@
 | 108 | 合规与发布 | Compliance & Release | 发布 |
 | 109 | 无 JIT 模式 | JIT-less (compat) | 运行时 |
 | 204 | 插件：GIT 操作 | Git Plugin | 插件（需求 204，规格在本工程而非父工程） |
+| 205 | 插件：品牌位 | Branding Plugin | 插件（需求 205，logo / 标题替换 + 首次引导自动弹窗关闭） |
 
 ---
 
