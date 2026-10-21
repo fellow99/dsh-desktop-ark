@@ -2,9 +2,9 @@
   "app": {
     "bundleName": "org.fellow99.dsh.DshDesktopArk",
     "vendor": "fellow99",
-    // versionCode 规则（对齐 dsh-desktop-hos）：major*10000 + minor*100 + patch
-    "versionCode": 100,
-    "versionName": "0.1.0",
+    // versionCode 规则：major*10000 + minor*100 + patch（0.2.1 → 201）；每次发布必须严格递增
+    "versionCode": 201,
+    "versionName": "0.2.1",
     "icon": "$media:app_icon",
     "label": "$string:app_name",
     "minAPIVersion": 17,

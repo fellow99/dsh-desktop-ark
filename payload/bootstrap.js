@@ -27,7 +27,7 @@ const APP_LOG = process.env.DSH_OHOS_APP_LOG || path.join(PAYLOAD_ROOT, 'app.log
 const READY_FILE = path.join(PAYLOAD_ROOT, 'ready.json');
 const DSH_HOME = process.env.DSH_HOME || path.join(process.env.HOME || '/', 'dsh-home');
 const VERSION_FILE = path.join(ASSET_DIR, 'dsh.version');
-const SCAFFOLD_VERSION = '0.1.0+scaffold';
+const SCAFFOLD_VERSION = '0.2.1';
 
 function now() {
   return Date.now();
