@@ -212,6 +212,7 @@ AC-<模块号>-<序号>       验收场景（spec §5 的标题），与 TC 一�
 | 2026-10-20 | R2 | 全量单元测试（17 套）+ 真机基本功能（API Key/工作区/文本对话/图片对话）+ GIT 仓库可达性 | **单元 17/17 通过；文本与图片对话均通过**；修复 6 个真机阻断缺陷（S3/S4/S5、桥信封、raw()、归档 mtime）；应用内 git 不可用（能力缺口） | `logs/20261020-3/{TEST_REPORT.md,UNIT_TESTS.txt}` |
 | 2026-10-20 | R3 | 声明面收敛：移除 `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` | 声明面 6 项（5 自有 + HAR）；`atm dump` 无三项；选择器两根如实报未授权，`请求权限` → `authResult=2` | `logs/20261020-3/TEST_REPORT.md` §8 |
 | 2026-10-21 | R4 | 声明面全量对齐参考工程 `pi-desktop-ark`（20 项：补 `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY`、`CUSTOM_SCREEN_CAPTURE`、`GYROSCOPE`、`ACCELEROMETER` 等；JIT ACL 仍仅 jit 变体） | 零 ACL Profile 装机成功；`phase=ready`；自检 7/7；HAP `module.json` 20 项无重复；`atm dump` 20 项在册、`ALLOW_WRITABLE_CODE_MEMORY` 不存在；选择器「文档」系统授权框真实弹出，**授权后目录正常列出（用户手动复验通过）**，`atm dump` → 两项 `grantStatus=0` | `logs/20261020-3/TEST_REPORT.md` §10 |
+| 2026-10-21 | R5 | 全量回归（L0 17 套 + L1 装机/形态 + L2 功能）：工作区、文本对话、看图对话、Git 双仓库（公开 + 带账号内网）、设置页、选择器 | **33 项通过 / 0 失败**。L0 17/17（需先清主机代理、`selfcheck` 标志须置于脚本之前）；compat 自检 7/7、`argv` 含 `--jitless`、`sqlite+FTS5`、垫片 5 枚；看图对话 4 s；内网仓库克隆 10 s；公开仓库**浅克隆** 10 s（全量克隆超工具 60 s 预算）。5 项非阻断发现（代理变量、selfcheck 调用写法、git 工具超时、`sh`/`rg` 缺失、`inputText` 不支持空格） | `logs/20261021-2/{TEST_REPORT.md,UNIT_TESTS.txt}` |
 
 > 敏感信息（API Key、带账号仓库的用户名/口令、内网地址）**不写入**本文件与任何提交物；设备侧运行期
 > 配置属一次性测试数据，不入库。
