@@ -97,3 +97,13 @@
 1. 任何新增/删除模块目录，必须同步更新第二张表与 `STRUCTURE.md`。
 2. 每次让状态从 `⬜` → `✅` 时，必须在第三节补一条可复现证据。
 3. `planned` 的能力不得在 `overall-test-cases.md` 标为通过。
+
+---
+
+## 新增模块（本轮：012 / 201）
+
+| # | 模块 | 文档 | 状态 | 证据 |
+|---|---|---|---|---|
+| M-012 | pnpm 集成 | `012-pnpm-integration/{spec,plan,tasks,test-cases}.md` | ✅ Done | `packages/market-ohos` + `scripts/assemble-payload.mjs`；单测 9/9；本机 `--jitless` 与真机安装/卸载闭环 |
+| M-201 | 插件市场 | `201-dsh-market/{spec,plan,tasks,test-cases}.md` | ✅ Done（UI 点击部分待补） | `dshmarket@1.66.42` 随包；`/dsh-market/installed` 返回 `profile=ohos`；`/dsh-market/install|uninstall` 真机 200 |
+| D-01 | 设计 | `../docs/pnpm+dsh-market.md` | ✅ Done | 设计评审 v2 放行（含 P12 undici 替身、R9 代理语义损失） |

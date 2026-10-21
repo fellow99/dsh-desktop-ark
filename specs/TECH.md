@@ -18,7 +18,7 @@
 | 构建系统 | hvigor（CLT） | 6.1.1.280 | HAP 构建 | 与 DevEco 同一套 |
 | SDK | HarmonyOS SDK | API **24**（6.1.1.125） | 编译/打包 | `compatibleSdkVersion 5.0.5(17)`、`targetSdkVersion 6.1.1(24)` |
 | 包管理（HarmonyOS） | ohpm | 随 CLT | HAR 依赖 | 消费 `libs/@fellow99/node-bridge.har` |
-| 包管理（Node 侧） | pnpm（纯 JS，随载荷） | 11.x | 运行时插件安装 | `node-linker=hoisted` + `package-import-method=copy`（无 symlink/hardlink） |
+| 包管理（Node 侧） | pnpm（纯 JS，随载荷） | 10.34.6 | 运行时插件安装 | `node-linker=hoisted` + `package-import-method=copy`（无 symlink/hardlink） |
 | 构建脚本 | Node ESM（`.mjs`） | 系统 Node ≥ 18 | 载荷装配/裁剪/打包 | 不引入构建期 npm 依赖 |
 | 存储 | dsh `storage-json` + 会话 JSONL/zstd | 上游 | 会话与 KV | 默认后端，无原生依赖 |
 | 全文搜索 | `node:sqlite`（首选） / better-sqlite3（兜底） | 内置 / ABI 137 自建 | `session-query-sqlite` | 取决于门禁 G2/G9 |
