@@ -32,13 +32,16 @@
 
 ## 2. 现役权限面（本次定稿）
 
-- `requestPermissions`（**历史数字，109-jitless 前**）：9 项。**现为 compat 6 / jit 7**（JIT 仅 jit 变体声明；`READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` 已于 2026-10-20 R2 从声明面移除）
-- `definePermissions`（历史）：`kernel.ALLOW_WRITABLE_CODE_MEMORY`。**现为 compat 空 / jit 1 项**
+- `requestPermissions`（**历史数字，109-jitless 前**）：9 项。**现为 compat 20 / jit 21**（2026-10-21 **R4** 全量对齐参考工程 `pi-desktop-ark`；JIT 仅 jit 变体声明）
+- `definePermissions`（历史）：`kernel.ALLOW_WRITABLE_CODE_MEMORY`。**现为 compat `LOCK_WINDOW_CURSOR` 1 项 / jit 2 项**
 - Ability 后台模式：`taskKeeping`
 - **现役 ACL**：compat **0 项** / jit 1 项（`kernel.ALLOW_WRITABLE_CODE_MEMORY`）
+- R4 补充事实：20 项声明**全部是 `availableLevel: normal`**（3 项 `user_grant`，其余 `system_grant`）⇒ 零 ACL Profile 直接装机成功（§11 真机记录）
 
 **2026-10-20 撤销的 4 项**（详见 `ACL配置.md` §3）：`READ_PASTEBOARD`、`READ_WRITE_DESKTOP_DIRECTORY`
-（两项都是需 ACL 的 `system_basic`）、`FILE_ACCESS_PERSIST`、`kernel.EXEMPT_ANONYMOUS_EXECUTABLE_MEMORY`（后两项无使用点）。
+（两项都是需 ACL 的 `system_basic`）、`FILE_ACCESS_PERSIST`（无使用点）。
+**更正（2026-10-21 R4）**：`kernel.EXEMPT_ANONYMOUS_EXECUTABLE_MEMORY` 已**重新声明**（对齐参考工程）；
+它是 `normal` 级开放权限、不需要 ACL，仍**不能**替代 JIT 那条 ACL。
 
 ⇒ 从「需 ACL 3 项」降到 **1 项**。零 ACL 方案的剩余距离，就是**这最后一项**。
 
@@ -222,4 +225,4 @@ grep -n "globalThis.fetch" build/payload-stage/dsh/node_modules/@deepseek-ai/dsh
 | 启动自检 | `compat` 下每次启动跑一次回环自检，事实写 `app.log` 与 `ready.json#compat.selfcheck`（≈195 ms） |
 | 形态切换 | `node scripts/set-node-mode.mjs jit|compat`（幂等；同步 `BuildConfig.NODE_MODE` 与 `module.json5` 声明面） |
 | 未覆盖 | `libreoffice-kit`（WASM worker，功能未挂载）、code-mode 类能力：如实失败，不伪造成功 |
-| 声明面收敛 | `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` 已从 `module.json5` 移除（R2）；选择器两 Tab 保留但如实报未授权 |
+| 声明面口径 | **2026-10-21 R4**：`requestPermissions` 改为**全量对齐参考工程 `pi-desktop-ark`**（compat 20 项 / jit 21 项）；审计口径区分「已声明未使用」与「已使用」（`ACL配置.md` §1 逐项标注） |

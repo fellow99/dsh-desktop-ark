@@ -64,7 +64,7 @@
 
 - **FR-109-007**：`compat` 构建的 `module.json5` MUST NOT 声明 `ohos.permission.kernel.ALLOW_WRITABLE_CODE_MEMORY`（`requestPermissions` 与 `definePermissions` 均无）。
 - **FR-109-008**：`jit` 构建 MUST 在该两处成对声明上述权限。
-- **FR-109-009**：`READ_WRITE_DOCUMENTS_DIRECTORY`、`READ_WRITE_DOWNLOAD_DIRECTORY` MUST NOT 声明（2026-10-20 R2 用户决定）；工作区选择器的「文档/下载」Tab 保留但 MUST 如实报未授权，MUST NOT 伪造可授权；二者亦 MUST NOT 出现在签名 Profile 的 `acls.allowed-acls` 中（重签时清理）。
+- **FR-109-009**：`READ_WRITE_DOCUMENTS_DIRECTORY`、`READ_WRITE_DOWNLOAD_DIRECTORY`、`CUSTOM_SCREEN_CAPTURE` MUST 声明（均为 `normal` + `user_grant`，**不需要 ACL**）；三者 MUST NOT 出现在签名 Profile 的 `acls.allowed-acls` 中（重签收敛，文档给复验命令）。声明面其余项 MUST 与参考工程 `pi-desktop-ark` 对齐（2026-10-21 R4 用户决定，逐项见 `docs/ACL配置.md` §1）；例外是 `kernel.ALLOW_WRITABLE_CODE_MEMORY`，它由 FR-109-007/008 的形态规则管辖。
 - **FR-109-010**：形态切换 MUST 可脚本化、幂等、可校验：`scripts/set-node-mode.mjs <jit|compat>`；任一目标 pattern 不匹配时 MUST 拒绝写入并以非零码退出。
 
 ### 4.3 载荷兼容层

@@ -15,25 +15,54 @@
 
 ## 1. 声明面（代码事实）
 
+> **2026-10-21 R4（声明面全量对齐，用户决定）**：`requestPermissions` 与参考工程 `pi-desktop-ark`
+> **逐项对齐**（20 项；唯一例外是 JIT ACL —— 它只属于 `jit` 变体，见 §10，否则零 ACL Profile 装不上）。
+> 20 项**全部是 `availableLevel: normal`**（3 项 `user_grant`，其余 `system_grant`）⇒ **不需要 ACL**；
+> 零 ACL Profile 下装机、启动、授权面均已实测（§4.1、§10）。
+> 对齐动机：本工程是同一套桌面壳的能力复刻，声明面缺项会让「截屏 / 设备方向 / 文件和文件夹」这类
+> 参考工程已具备的能力在本工程里**连申请入口都没有**（未声明的权限运行期申请必被拒，见 §5）。
+
 | 项 | 内容 |
 |---|---|
-| `requestPermissions` | **compat 6 项 / jit 7 项**（5 项常驻本工程 + `GET_NETWORK_INFO` 由 HAR 合并；JIT 权限仅 `jit` 变体声明） |
-| 其中带 `reason` + `usedScene` | **3 项**（`EntryAbility` / `inuse`）：`PREPARE_APP_TERMINATE`、`INHERIT_PARENT_PERMISSION`、`kernel.IGNORE_LIBRARY_VALIDATION`（文案在 `base/element/string.json`） |
-| `definePermissions` | **compat：空 / jit：`kernel.ALLOW_WRITABLE_CODE_MEMORY`**（受限权限两处成对出现） |
+| `requestPermissions` | **compat 20 项 / jit 21 项**（本工程 `module.json5` 显式列全 20 项；`GET_NETWORK_INFO` 与 HAR 同名合并、HAP 产物中无重复；JIT 权限仅 `jit` 变体声明） |
+| 其中带 `reason` + `usedScene` | **7 项**（`EntryAbility` / `inuse`）：`PREPARE_APP_TERMINATE`、`INHERIT_PARENT_PERMISSION`、`kernel.IGNORE_LIBRARY_VALIDATION`、`kernel.EXEMPT_ANONYMOUS_EXECUTABLE_MEMORY`、`READ_WRITE_DOCUMENTS_DIRECTORY`、`READ_WRITE_DOWNLOAD_DIRECTORY`、`CUSTOM_SCREEN_CAPTURE`（文案在 `base/element/string.json`） |
+| `definePermissions` | **compat：`LOCK_WINDOW_CURSOR` 1 项 / jit：再 + `kernel.ALLOW_WRITABLE_CODE_MEMORY`**（`LOCK_WINDOW_CURSOR` 实为 normal 级、**不需要 ACL**，与参考工程同样写在 define 面；`atm dump` 里 `grantStatus=0` 可证） |
 | Ability 后台模式 | `EntryAbility.backgroundModes = ["taskKeeping"]` |
 
-本工程自有的 5 项（下表第 6 行是 `jit` 变体才声明的 ACL）：
+20 项逐项判定（属性取自本机 SDK `toolchains/lib/PermissionDefinitions.json`，第一手）：
 
 | # | 权限 | availableLevel | grantMode | provisionEnable | 需 ACL？ | 用途 |
 |---|---|---|---|---|---|---|
 | 1 | `INTERNET` | normal | system_grant | true | ❌ | ArkWeb 访问 loopback 服务；Node 访问模型 API |
-| 2 | `PREPARE_APP_TERMINATE` | normal | system_grant | true | ❌ | `onPrepareToTerminate` 里先停内置 Node |
-| 3 | `KEEP_BACKGROUND_RUNNING` | normal | system_grant | true | ❌ | `taskKeeping` 长时任务 |
-| 4 | `INHERIT_PARENT_PERMISSION` | normal | system_grant | **false** | ❌ | 内置 Node 运行时与宿主同权限（名字带 `kernel.` 但属**开放权限**） |
-| 5 | `kernel.IGNORE_LIBRARY_VALIDATION` | normal | system_grant | **false** | ❌ | 加载随包 `libnode.so` / `libnode_bridge.so` 时跳过库校验（同上，开放权限） |
-| 6 | `kernel.ALLOW_WRITABLE_CODE_MEMORY` | **system_basic** | system_grant | true | ✅ **需 ACL** | 进程内 Node/V8 的 JIT（无它不带 `--jitless` 即 SIGTRAP）。**仅 `jit` 变体声明**；默认 compat 不声明 |
+| 2 | `GET_NETWORK_INFO` | normal | system_grant | true | ❌ | 网络状态；与 `@fellow99/node-bridge` HAR 同名合并（显式声明后仍只有 1 条） |
+| 3 | `ACCESS_CERT_MANAGER` | normal | system_grant | **false** | ❌ | 证书管理（对齐参考工程；本工程 0 处调用） |
+| 4 | `RUNNING_LOCK` | normal | system_grant | true | ❌ | 运行时锁（对齐；0 处调用） |
+| 5 | `PRINT` | normal | system_grant | true | ❌ | 打印（对齐；0 处调用） |
+| 6 | `PREPARE_APP_TERMINATE` | normal | system_grant | true | ❌ | `onPrepareToTerminate` 里先停内置 Node |
+| 7 | `ACCESS_BIOMETRIC` | normal | system_grant | true | ❌ | 生物识别（对齐；0 处调用） |
+| 8 | `PRIVACY_WINDOW` | normal | system_grant | true | ❌ | 隐私窗口（对齐；0 处调用） |
+| 9 | `WINDOW_TOPMOST` | normal | system_grant | true | ❌ | 窗口置顶（对齐；0 处调用） |
+| 10 | `KEEP_BACKGROUND_RUNNING` | normal | system_grant | true | ❌ | `taskKeeping` 长时任务 |
+| 11 | `INHERIT_PARENT_PERMISSION` | normal | system_grant | **false** | ❌ | 内置 Node 运行时与宿主同权限（名字带 `kernel.` 但属**开放权限**） |
+| 12 | `kernel.IGNORE_LIBRARY_VALIDATION` | normal | system_grant | **false** | ❌ | 加载随包 `libnode.so` / `libnode_bridge.so` 时跳过库校验（同上，开放权限） |
+| 13 | `kernel.EXEMPT_ANONYMOUS_EXECUTABLE_MEMORY` | normal | system_grant | **false** | ❌ | 随包运行时申请匿名可执行内存（**不能**替代 JIT ACL，见 §2 易错点 2） |
+| 14 | `GYROSCOPE` | normal | system_grant | true | ❌ | 「应用获取设备方向」（对齐；0 处调用） |
+| 15 | `ACCELEROMETER` | normal | system_grant | true | ❌ | 加速度计（同上） |
+| 16 | `GET_FILE_ICON` | normal | system_grant | true | ❌ | 文件图标（对齐；0 处调用） |
+| 17 | `LOCK_WINDOW_CURSOR` | normal | system_grant | true | ❌ | 锁定窗口光标（对齐；0 处调用；同在 `definePermissions`） |
+| 18 | `READ_WRITE_DOCUMENTS_DIRECTORY` | normal | **user_grant** | true | ❌ | 「文件和文件夹 ⇒ 文档」：选择器「文档」Tab（运行期授权，§5） |
+| 19 | `READ_WRITE_DOWNLOAD_DIRECTORY` | normal | **user_grant** | true | ❌ | 「文件和文件夹 ⇒ 下载」：选择器「下载」Tab（运行期授权，§5） |
+| 20 | `CUSTOM_SCREEN_CAPTURE` | normal | **user_grant** | true | ❌ | 「截屏」：截取屏幕内容粘贴进会话（运行期授权；本工程 UI 侧 0 处调用） |
 
-依赖合并进来的 1 项：`GET_NETWORK_INFO`（normal / system_grant，来自 `ohos-node-bridge/library/src/main/module.json5`，不随本工程声明面维护）。
+`jit` 变体额外声明的 1 项（**唯一的 ACL**）：
+
+| # | 权限 | availableLevel | grantMode | provisionEnable | 需 ACL？ | 用途 |
+|---|---|---|---|---|---|---|
+| 21 | `kernel.ALLOW_WRITABLE_CODE_MEMORY` | **system_basic** | system_grant | true | ✅ **需 ACL** | 进程内 Node/V8 的 JIT（无它不带 `--jitless` 即 SIGTRAP）。**仅 `jit` 变体声明**；默认 compat 不声明 |
+
+> 「声明面 ≠ 使用面」：第 3/4/5/7/8/9/14/15/16/17/20 项目前**只对齐声明、工程内 0 处调用**。
+> 这样做的取舍是用户明确选择的（全量对齐参考工程）；代价是审计时要区分「已声明未使用」与「已使用」，
+> 上表「用途」列已逐项标注。要收窄时按行删除即可，**不影响** ACL 与装机。
 
 ## 2. 判定规则（先说规则，再逐项判）
 
@@ -66,16 +95,18 @@
 | `FILE_ACCESS_PERSIST` | normal + system_grant（不需 ACL，但**无使用点**） | 选择器是**路径**模型（不返回 URI），全仓 0 处 `fileShare.persistPermission`；保留只会误导审计 |
 | `kernel.EXEMPT_ANONYMOUS_EXECUTABLE_MEMORY` | normal + system_grant（不需 ACL，但**无使用点/不能替代 JIT**） | 见 §2 第 2 点：它不能替代 `ALLOW_WRITABLE_CODE_MEMORY`；JIT 已由 ACL 满足，留着属于「声明面 ≠ 使用面」 |
 
-**2026-10-20 二次收敛（R2，用户决定）**：`READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` 已**从声明面移除**
-（`module.json5` 的 `requestPermissions` 不再包含二者）。后果与口径：
+**2026-10-21 R4：撤销 R2 的二次收敛，声明面回到「全量对齐参考工程」**。R2 曾把
+`READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` 从声明面删除；R4 按用户决定**重新声明**，
+并一并补齐 `CUSTOM_SCREEN_CAPTURE`、`GYROSCOPE`、`ACCELEROMETER` 等其余缺项（逐项见 §1）。
+口径与后果：
 
-- 应用**不再具备**文档/下载目录的读写权限；工作区选择器的「文档」「下载」两个 Tab **保留**（用户选择 C），
-  但会如实报 `not-granted`；「请求权限」会被平台拒绝（未声明的权限无法运行期申请）。
-- 沙箱根不受影响；**没有**任何路径再调用这两个权限名（`workspace-picker` 只把它们当描述符）。
-- 若将来要恢复：走 `DocumentViewPicker`（URI 一次性授权）或重新声明 + Profile 授权，**不要**只改 Profile。
-
-> ⚠️ 历史结论（保留取证）：这两项是 `user_grant`，装完本来就没授权；旧版本 `browse` 必然 `EACCES`，
-> 姊妹工程四台机器全部如此（`docs/01` REV-8/10/11）。
+- 两项目录权限是 `normal` + `user_grant` ⇒ **不需要 ACL**，声明后装完仍是「未授予」，
+  由用户在选择器对话框点「请求权限」触发系统授权弹窗（§5）；**装完打不开属正常现象**。
+- 「截屏」（`CUSTOM_SCREEN_CAPTURE`）同为 `user_grant`：声明后才有弹窗入口，但本工程 UI 侧**尚无调用点**
+  （只对齐声明面，不代表功能已实现）。
+- 这些项**都不进**签名 Profile 的 `acls.allowed-acls`；零 ACL Profile 装机实测见 §10。
+- R2 的取证结论仍有效且更要记住：**未声明的权限，运行期申请必被平台拒绝（`authResult=2`）** ——
+  这正是 R4 要把声明面补齐的原因。
 
 ## 4. 装机与授权：实测记录
 
@@ -90,9 +121,14 @@ DevEco 自动签名为 `org.fellow99.dsh.DshDesktopArk` 生成的调试 Profile�
 { "type": "debug", "permissions": {}, "acls": { "allowed-acls": [] } }
 ```
 
-装机实测：`hdc install -r` → `install bundle successfully`；启动 `phase=ready`、compat 自检 7/7；
+装机实测（**R3，声明面 6 项**）：`hdc install -r` → `install bundle successfully`；启动 `phase=ready`、compat 自检 7/7；
 `atm dump` 中 `DOCUMENTS / DOWNLOAD / WRITABLE` 均为 0 条。⇒ **零 ACL 发行线打通**（compat 不需要任何 ACL；
 `jit` 变体在零 ACL Profile 上会装机失败，这是预期）。
+
+装机实测（**R4，声明面 20 项 —— 当前**）：同一份零 ACL Profile，`hdc install -r` 仍 `install bundle successfully`；
+启动 `phase=ready`、自检 7/7；`atm dump -t` **20 项在册**，其中 17 项 `grantStatus=0`，
+3 项 `user_grant` 为 `-1`（`CUSTOM_SCREEN_CAPTURE`、`READ_WRITE_DOCUMENTS_DIRECTORY`、`READ_WRITE_DOWNLOAD_DIRECTORY`），
+`ALLOW_WRITABLE_CODE_MEMORY` 不存在。⇒ **「20 项全部不需要 ACL」由装机事实证实**（详见 §10）。
 
 **2026-10-20 重签前（历史形状，保留取证）**：
 
@@ -282,10 +318,10 @@ hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -A2 DOCUMENTS_D
 
 ## 8. 后续路线（均**未**实施）
 
-1. **重签 Profile，把两项目录权限从 `acls.allowed-acls` 移除**（2026-10-20 R2 起声明面已删除，Profile 里若仍留着属多余授权）：
-   移除后不会再产生 `flag 2 / status -1` 的矛盾态。**注意**：声明面已删除 ⇒ 运行期申请会被平台拒绝（§5 的弹窗路径不再适用）；
-   要恢复功能只能走下面第 2 条，或重新声明 + Profile 授权（`provisionEnable: true` 也可做预授权，代价是用户没有拒绝权）。
-2. **改走系统选择器**：`DocumentViewPicker` 取一次性授权 URI，无需任何目录权限。
+1. **重签 Profile 时收敛 ACL 面**：`acls.allowed-acls` 只保留 `jit` 变体真正需要的那一项
+   （`kernel.ALLOW_WRITABLE_CODE_MEMORY`）。R4 之后 20 项声明**全部是 normal 级**，一个都不需要进 ACL；
+   若 Profile 里出现 `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` / `CUSTOM_SCREEN_CAPTURE`，属**多余授权**（会造出 §5.1 的 `flag 2 / status -1` 矛盾态），重签时删掉。
+2. **改走系统选择器**（可选）：`DocumentViewPicker` 取一次性授权 URI，无需任何目录权限。
    现状：ArkTS 侧未实现 `picker.DocumentViewPicker`（本工程只有 `perm.openAppInfo` 与 `shell.openExternal`）。
 3. **如实呈现**：`ENOENT`（设备没有该目录）与 `EACCES`（没授权）已分开（`result: 'missing'` vs `'not-granted'`），
    UI 分别给「只刷新」与「请求权限 + 刷新」。
@@ -308,25 +344,34 @@ ACL 只决定**内存权限**，不影响原生库与载荷：`libnode.so`（120
 
 **Profile 面（重签时收敛）**：`acls.allowed-acls` 只应保留 `jit` 变体真正需要的那一项。
 
-- `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` **已从声明面移除**（2026-10-20 R2）；Profile 里若仍有这两项，
-  属**多余授权**，重签时一并删除。
-- 以现有调试 Profile 装 `compat` HAP：Profile 里多出的 ACL 属**多余授权**，不影响装机；
-  真正的零 ACL 验收需要重签一份不含任何 `acls` 的 Profile。
+- R4 之后 compat 的 20 项声明**全部是 `normal` 级**（§1），**一个都不需要 ACL**；Profile 里若出现
+  `READ_WRITE_{DOCUMENTS,DOWNLOAD}_DIRECTORY` / `CUSTOM_SCREEN_CAPTURE` 等项目，属**多余授权**，
+  会在运行期造出 `grantFlag=2 / grantStatus=-1` 的矛盾态（§5.1），重签时一并删除。
+- 现役零 ACL Profile（`permissions: {}`、`acls.allowed-acls: []`）即可装 compat HAP；
+  真正的零 ACL 验收以 §10 末尾的真机记录为准。
 
 **复验（重签后必做）**：
 
 ```bash
-# 1) HAP 声明面：compat 变体必须没有 JIT 权限
+# 1) HAP 声明面：compat 变体必须没有 JIT 权限，且总条数为 20
 unzip -p entry/build/default/outputs/default/entry-default-signed.hap module.json | grep -c ALLOW_WRITABLE_CODE_MEMORY   # → 0
-# 2) 设备授权面
-hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -A1 -E "WRITABLE|DOCUMENTS|DOWNLOAD"
+unzip -p entry/build/default/outputs/default/entry-default-signed.hap module.json | grep -c '"name": "ohos.permission'   # → 20
+# 2) 设备授权面：三项用户授权项在册但未授予（grantStatus=-1），JIT 整项不存在
+hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -A1 -E "WRITABLE|DOCUMENTS|DOWNLOAD|SCREEN_CAPTURE"
 # 3) 运行形态事实
 hdc shell cat /data/app/el2/100/base/org.fellow99.dsh.DshDesktopArk/haps/entry/files/payload/ready.json
 #    → compat.active=true, webAssembly=undefined, fetch=installed, selfcheck.status=ok
 ```
 
-**零 ACL 复验（2026-10-21，真机 HAD-W32）**：重签后 Profile `acls: []` → compat HAP 安装成功、`phase=ready`、自检 7/7；
-`atm dump` 中三项均为 0。另：零 ACL Profile 下 `jit` 变体（声明 JIT 权限）**装不上**（预期，需带 ACL 的 Profile）。
+R3（声明面 6 项）与 **R4（声明面 20 项）**下 compat HAP **均安装成功**、`phase=ready`、自检 7/7；
+R4 的 `atm dump -t` 为 **20 项在册、17 项 `grantStatus=0`**，未授予的恰好是 3 项 `user_grant`
+（`CUSTOM_SCREEN_CAPTURE`、`READ_WRITE_DOCUMENTS_DIRECTORY`、`READ_WRITE_DOWNLOAD_DIRECTORY`），
+`ALLOW_WRITABLE_CODE_MEMORY` 整项不存在 —— 即「20 项声明全部不需要 ACL」被装机事实证实。
+另：零 ACL Profile 下 `jit` 变体（声明 JIT 权限）**装不上**（预期，需带 ACL 的 Profile）。
+
+**R4 附加观测（真机）**：声明补齐后，选择器「文档」目录**确实弹出了系统授权框**
+（标题「允许"DSH Desktop"访问你的"文档"文件夹？」，正文取自 `$string:documents_dir`）——
+这是 R3 做不到的（那时平台直接拒绝，`authResult=2`）。授权按钮的点击结果留待用户手动确认（TC-106-006）。
 
 **既有实测（2026-10-20，本机）**：`node --jitless` 下兼容层自检 7/7 通过（GET、POST JSON、SSE 分块、
 Abort、FormData、惰性 getter 封印、`fetch` 可用），耗时 ≈195 ms；jit 对照臂 `active=false`（零动作）。

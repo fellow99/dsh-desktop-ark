@@ -7,6 +7,8 @@
     { "name": "inherit_parent_permission", "value": "内置 Node 运行时需要与宿主一致的执行权限" },
     { "name": "ignore_library_validation", "value": "加载随包分发的 Node 运行时原生库" },
     { "name": "documents_dir", "value": "把文档目录中的文件夹注册为工作区" },
-    { "name": "download_dir", "value": "把下载目录中的文件夹注册为工作区" }
+    { "name": "download_dir", "value": "把下载目录中的文件夹注册为工作区" },
+    { "name": "screen_capture", "value": "用于截取屏幕内容并粘贴到会话中" },
+    { "name": "exempt_anonymous_executable_memory", "value": "内置 Node 运行时申请匿名可执行内存" }
   ]
 }

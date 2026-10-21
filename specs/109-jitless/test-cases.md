@@ -57,8 +57,8 @@
 - 证据：`node.log`、`ready.json`
 
 ### TC-109-010 权限面复核
-- 步骤：`unzip -p … module.json | grep -E "DOCUMENTS|DOWNLOAD|WRITABLE"`；`hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -E "DOCUMENTS|DOWNLOAD|WRITABLE"`
-- 期望（compat 变体）：**三项都不存在于声明面**（目录两项已移除、JIT 未声明）；`atm dump` 中也无这三项
+- 步骤：`unzip -p … module.json | grep -c '"name": "ohos.permission'`（条数）；`unzip -p … module.json | grep -c ALLOW_WRITABLE_CODE_MEMORY`；`hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -A1 -E "DOCUMENTS|DOWNLOAD|SCREEN_CAPTURE|WRITABLE"`
+- 期望（compat 变体）：声明面 **20 项**（R4 全量对齐参考工程）、`ALLOW_WRITABLE_CODE_MEMORY` **0 处**；`atm dump` 中 `DOCUMENTS`/`DOWNLOAD`/`SCREEN_CAPTURE` **在册但 `grantStatus=-1`**（`user_grant` 未授予），`WRITABLE` **整项不存在**
 - 证据：HAP `module.json` + dump 输出
 
 ## C. 回归与降级
