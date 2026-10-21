@@ -571,8 +571,44 @@ function assertDshMarketArtifact(dest) {
 }
 
 /**
+ * 市场工程是否「源码比产物新」。
+ *
+ * `lib/` 是构建产物：它一旦落后于 `src/`，我们打出去的包就少了新的宿主路由/客户端能力，
+ * 而表现只是某个 UI 动作返回 404/405（例：`/dsh-market/sidebar-entry` 在旧 lib 里根本不存在）。
+ * 这类漂移必须在装配期变红，而不是等用户点出来。
+ */
+function assertMarketBuilt(marketRoot) {
+  const pairs = [
+    ['src/index.ts', 'lib/index.js'],
+    ['src/routes.ts', 'lib/routes.js'],
+    ['src/client/index.ts', 'client/client.js'],
+  ];
+  for (const [source, built] of pairs) {
+    const srcPath = resolve(marketRoot, source);
+    const builtPath = resolve(marketRoot, built);
+    if (!existsSync(srcPath) || !existsSync(builtPath)) continue;
+    if (statSync(srcPath).mtimeMs > statSync(builtPath).mtimeMs + 1000) {
+      throw new Error(
+        `dsh-market 的构建产物落后于源码：${built} 比 ${source} 旧（先 cd ../dsh-market && npm run build）`,
+      );
+    }
+  }
+}
+
+/** 已物化的 dshmarket 是否落后于源码（是则重拷；源目录对比，只看白名单产物）。 */
+function marketCopyIsStale(dest) {
+  for (const rel of ['lib/index.js', 'lib/routes.js', 'client/client.js', 'package.json']) {
+    const src = resolve(MARKET_ROOT, rel);
+    const copy = resolve(dest, rel);
+    if (!existsSync(src) || !existsSync(copy)) return true;
+    if (statSync(src).mtimeMs > statSync(copy).mtimeMs + 1000) return true;
+  }
+  return false;
+}
+
+/**
  * 物化 dsh-market 到 `<stage>/node_modules/dshmarket`。
- * 市场工程缺失或未构建即抛错；幂等：目标已存在只做断言。
+ * 市场工程缺失或未构建即抛错；幂等：目标已存在且未落后于源码时只做断言。
  */
 function collectDshMarket(stage) {
   const dest = resolve(stage, 'node_modules/dshmarket');
@@ -580,7 +616,8 @@ function collectDshMarket(stage) {
   if (!existsSync(resolve(MARKET_ROOT, 'package.json'))) {
     throw new Error(`dsh-market 未找到：${MARKET_ROOT}（${firstStep}）`);
   }
-  if (existsSync(resolve(dest, 'package.json'))) {
+  assertMarketBuilt(MARKET_ROOT);
+  if (existsSync(resolve(dest, 'package.json')) && !marketCopyIsStale(dest)) {
     applyMarketUndiciShim(dest, log);
     assertDshMarketArtifact(dest);
     log('dshmarket 已物化（断言通过）');

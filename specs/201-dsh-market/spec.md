@@ -56,6 +56,8 @@
 
 - **FR-201-020**：文档 MUST 披露：`git:` 源插件、需 lifecycle 构建脚本的插件不可安装；市场的「放行构建脚本并重试」在本宿主无效。
 - **FR-201-021**：文档 MUST 披露：profile 位于载荷内，换包（新 sha12 目录）后已安装插件不保留。
+- **FR-201-022**：构建期 MUST 拒绝「源码比产物新」的 `dsh-market`（`src/*.ts` 新于 `lib/*.js` 即失败），避免打出缺路由的旧 `lib/`（现象：市场 UI 的某个动作返回 404/405）。
+- **FR-201-023**：权限预设的客户端卡片（`ui-permission`）MUST 与宿主 `permission` 行一同禁用：宿主行缺失时该卡片只会显示 `/api/permissionPresets/catalog` 的 404。
 
 ---
 

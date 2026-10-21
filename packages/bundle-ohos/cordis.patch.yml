@@ -45,6 +45,13 @@
 - id: permission
   disabled: true
 
+# 权限预设的**客户端**面：宿主行已禁用（见上），但客户端卡片仍会去调
+# `/api/permissionPresets/catalog` ⇒ 通用设置 → 权限 里显示
+# `transport failure … HTTP 404`。平台没有内核隔离，如实不提供这个入口，
+# 而不是留一张必然报错的卡（宪法 C2 / C14）。
+- id: ui-permission
+  disabled: true
+
 # ── 品牌与首次引导：按本产品身份交付，不把上游的预览提示与官方引导带给用户 ────────
 # 上游把这三处写死在界面/组件里，这里只用它自己的两个配置口 + 一个禁用口：
 #   ① `ui-settings-general.welcomeNoticeVersion` = 上游当前版本 ⇒ 预览提示视为已致谢
