@@ -1,8 +1,8 @@
 {
   "string": [
-    { "name": "module_desc", "value": "DSH Desktop 主模块" },
-    { "name": "EntryAbility_desc", "value": "DSH Desktop" },
-    { "name": "EntryAbility_label", "value": "DSH Desktop" },
+    { "name": "module_desc", "value": "DSH Desktop Ark 主模块" },
+    { "name": "EntryAbility_desc", "value": "DSH Desktop Ark" },
+    { "name": "EntryAbility_label", "value": "DSH Desktop Ark" },
     { "name": "prepare_app_terminate", "value": "退出前先停止内置 Node 运行时" },
     { "name": "inherit_parent_permission", "value": "内置 Node 运行时需要与宿主一致的执行权限" },
     { "name": "ignore_library_validation", "value": "加载随包分发的 Node 运行时原生库" },

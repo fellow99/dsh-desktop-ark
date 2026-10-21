@@ -123,7 +123,7 @@ struct Index {
 
       if (this.showOverlay) {
         Column({ space: 12 }) {
-          Text('DSH Desktop')
+          Text('DSH Desktop Ark')
             .fontSize(20)
             .fontWeight(FontWeight.Medium)
           Text(this.phase)

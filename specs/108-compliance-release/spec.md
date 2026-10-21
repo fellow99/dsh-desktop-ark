@@ -49,6 +49,7 @@
 ## 3. 功能需求
 ### 3.1 标识与版本
 - **FR-108-001**：应用标识（包名、厂商、应用名、图标）MUST 稳定；修改包名 MUST 视为新产品，MUST NOT 原地升级。
+  > **2026-10-21 变更记录**：应用名由「DSH Desktop」改为「**DSH Desktop Ark**」（`AppScope` 的 `app_name`，同步 `EntryAbility_label/_desc`、`module_desc`、启动页与界面标题）；图标改为父工程 `assets/logo.png`（200×200 RGBA 源，生成 1024×1024 透明画布、内容占宽 65%）。**包名未变** ⇒ 仍为同一产品，可原地升级。
 - **FR-108-002**：设备形态 MUST 仅包含 2in1 与 tablet；MUST NOT 声明 phone。
 - **FR-108-003**：应用 MUST 单实例运行；重复启动 MUST 复用已有实例。
 - **FR-108-004**：版本号 MUST 按"主 * 10000 + 次 * 100 + 修订"计算，且 MUST 单调递增；版本名 MUST 与版本号同步。
