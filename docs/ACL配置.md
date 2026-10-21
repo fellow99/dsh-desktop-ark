@@ -84,6 +84,18 @@
 DevEco 自动签名为 `org.fellow99.dsh.DshDesktopArk` 生成的调试 Profile（`~/.ohos/config/default_dsh-desktop-ark_*.p7b`）
 解出来的形状（`openssl smime -verify -inform DER -in … -noverify`）：
 
+**2026-10-21 重签后（当前，零 ACL）**：
+
+```json
+{ "type": "debug", "permissions": {}, "acls": { "allowed-acls": [] } }
+```
+
+装机实测：`hdc install -r` → `install bundle successfully`；启动 `phase=ready`、compat 自检 7/7；
+`atm dump` 中 `DOCUMENTS / DOWNLOAD / WRITABLE` 均为 0 条。⇒ **零 ACL 发行线打通**（compat 不需要任何 ACL；
+`jit` 变体在零 ACL Profile 上会装机失败，这是预期）。
+
+**2026-10-20 重签前（历史形状，保留取证）**：
+
 ```json
 {
   "type": "debug",
@@ -99,7 +111,7 @@ DevEco 自动签名为 `org.fellow99.dsh.DshDesktopArk` 生成的调试 Profile�
 }
 ```
 
-两条结论：
+历史形状的结论（保留）：
 
 1. **`acls.allowed-acls` 里留着已撤销的声明项是无害的**（装机不再受它们约束；`atm dump` 里它们已 ABSENT）。
 2. **但把 `normal + user_grant` 放进 ACL 面会有副作用**：安装期平台会给这两个权限打上 `grantFlag = 2`
@@ -312,6 +324,9 @@ hdc shell "atm dump -t -b org.fellow99.dsh.DshDesktopArk" | grep -A1 -E "WRITABL
 hdc shell cat /data/app/el2/100/base/org.fellow99.dsh.DshDesktopArk/haps/entry/files/payload/ready.json
 #    → compat.active=true, webAssembly=undefined, fetch=installed, selfcheck.status=ok
 ```
+
+**零 ACL 复验（2026-10-21，真机 HAD-W32）**：重签后 Profile `acls: []` → compat HAP 安装成功、`phase=ready`、自检 7/7；
+`atm dump` 中三项均为 0。另：零 ACL Profile 下 `jit` 变体（声明 JIT 权限）**装不上**（预期，需带 ACL 的 Profile）。
 
 **既有实测（2026-10-20，本机）**：`node --jitless` 下兼容层自检 7/7 通过（GET、POST JSON、SSE 分块、
 Abort、FormData、惰性 getter 封印、`fetch` 可用），耗时 ≈195 ms；jit 对照臂 `active=false`（零动作）。
