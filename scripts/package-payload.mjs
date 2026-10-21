@@ -42,6 +42,16 @@ try {
     fail(`@dsh-ohos/git 缺少物化的 isomorphic-git 闭包：${gitNested}`
       + '（先跑 node scripts/assemble-payload.mjs --deploy --apply 或 --from <树> --apply）');
   }
+  // 201-dsh-market / 012-pnpm-integration：市场或 pnpm 引擎缺一半时，运行期只会「静默没有市场 /
+  // 装不了插件」——归档前必须拦住，别把半成品发出去。
+  const marketEntry = join(STAGE, 'node_modules/dshmarket/lib/index.js');
+  if (existsSync(join(STAGE, 'node_modules/dshmarket/package.json')) && !existsSync(marketEntry)) {
+    fail(`dshmarket 缺少 host 入口：${marketEntry}（重跑 assemble-payload --reuse --apply）`);
+  }
+  const pnpmEngineEntry = join(STAGE, 'node_modules/dsh-market-pnpm/bin/pnpm.cjs');
+  if (existsSync(join(STAGE, 'node_modules/dsh-market-pnpm/package.json')) && !existsSync(pnpmEngineEntry)) {
+    fail(`pnpm 引擎缺少入口：${pnpmEngineEntry}（重跑 assemble-payload --reuse --apply）`);
+  }
 } catch (error) {
   fail(`垫片安装失败：${error instanceof Error ? error.message : String(error)}`);
 }
@@ -52,9 +62,20 @@ const builtAtArg = (() => {
   return index >= 0 ? process.argv[index + 1] : undefined;
 })();
 
+/**
+ * profile 的运行期状态不进归档。
+ *
+ * 设备上的 profile 是「首启即为随包状态」，而开发机上跑过冒烟后会留下：
+ * `node_modules`（装过的插件）、`.pnpm-store`（pnpm 内容寻址库，文件名 128 字节，
+ * 超出 ustar 单段 100 字节上限，根本编不进非 pax 归档）、`.pnpm-cache`、`.dsh-market`。
+ * 这些都必须排除，否则同一份载荷会因「本机装过什么」而不可复现，甚至直接打包失败。
+ */
+const PROFILE_RUNTIME_STATE = /^profiles\/[^/]+\/(?:node_modules|\.pnpm-store|\.pnpm-cache|\.dsh-market|pnpm-lock\.yaml|pnpm-workspace\.yaml)(?:\/|$)/;
+
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
     const full = join(dir, entry.name);
+    if (PROFILE_RUNTIME_STATE.test(relative(STAGE, full).split('\\').join('/'))) continue;
     if (entry.isDirectory()) walk(full, out);
     else if (entry.isFile()) out.push(full);
   }

@@ -1,0 +1,17 @@
+{
+  "name": "undici",
+  "version": "7.29.1",
+  "private": true,
+  "type": "module",
+  "description": "DSH Desktop（Ark 版）的 undici 替身：把 fetch 落在原生 node:http/https 上（纯 JS，不依 WASM）。原包在 --jitless 下每次请求都抛 WebAssembly is not defined。",
+  "main": "./index.cjs",
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "require": "./index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "dshOhosShim": "pure-js-undici",
+  "license": "MIT"
+}
