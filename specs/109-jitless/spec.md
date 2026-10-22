@@ -125,8 +125,9 @@ WASM 可用时：`{ "active": false, "webAssembly": "defined", ... }`，`selfche
 
 ## 8. 假设与约束
 
-- 运行时 Node **v24.2.0**（`ohos-node-bridge` 随包 `libnode.so`）；`--jitless` 仍受支持（Node 上游有移除讨论，见 `nodejs/node#66459`，升级前必须重跑本用例）。
-- `ohos-node-bridge` 已支持 `NodeRuntimeOptions.jitless`（`NodeRuntime.ets:233`）。
+- 运行时 Node **v24.2.0**（`@fellow99/node-runtime` 随包 `libnode.so`）；`--jitless` 仍受支持（Node 上游有移除讨论，见 `nodejs/node#66459`，升级前必须重跑本用例）。
+- `@fellow99/node-bridge` 已支持 `NodeRuntimeOptions.jitless`（`NodeRuntime.ets:233`）。
+
 - 兼容层实现复用参考工程 `pi-desktop-ark/payload/jitless/**`（同一作者、已量产），只做来源标注与最小适配。
 
 ## 9. 依赖

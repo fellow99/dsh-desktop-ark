@@ -12,12 +12,15 @@
 |---|---|---|---|---|
 | 宿主语言（UI 层） | ArkTS / ArkUI（Stage 模型） | 随 SDK | 窗口、Web 容器、系统能力 | 鸿蒙唯一一等公民 UI 栈 |
 | 渲染容器 | ArkWeb（系统 Chromium） | 随系统 | 加载 dsh Web 前端 | 100% 复用上游 UI；不打包 Chromium |
-| Node 运行时 | `ohos-node-bridge` 内嵌 `libnode.so` | Node **v24.2.0**（`NODE_MODULE_VERSION 137`） | 跑 dsh Host | 满足 dsh `engines.node ^22.19.0 \|\| >=24.0.0`；含 `node:zlib` zstd |
-| NAPI 引导件 | `libnode_bridge.so`（随 HAR） | HAR 0.1.0 | `dlopen` + `node::Start` | 见 `ohos-node-bridge` 七项 ELF 门禁 |
+| Node 运行时 | `@fellow99/node-runtime`（ohpm）内嵌 `libnode.so` | Node **v24.2.0**（`NODE_MODULE_VERSION 137`） | 跑 dsh Host | 满足 dsh `engines.node ^22.19.0 \|\| >=24.0.0`；含 `node:zlib` zstd |
+
+| NAPI 引导件 | `libnode_bridge.so`（随 `@fellow99/node-bridge` 包） | 0.1.0（ohpm） | `dlopen` + `node::Start` | 七项 ELF 门禁在上游发布流水线执行，SHA-256 锁定 |
+
 | 上游产品 | `deepseek-harness` | tag **`dsh-v0.2.1-rc.2`**（`@deepseek-ai/dsh` 0.2.1-rc.2） | Host、Web 前端、profile/bundle 机制 | 唯一上游；零源码补丁为目标 |
 | 构建系统 | hvigor（CLT） | 6.1.1.280 | HAP 构建 | 与 DevEco 同一套 |
 | SDK | HarmonyOS SDK | API **24**（6.1.1.125） | 编译/打包 | `compatibleSdkVersion 5.0.5(17)`、`targetSdkVersion 6.1.1(24)` |
-| 包管理（HarmonyOS） | ohpm | 随 CLT | HAR 依赖 | 消费 `libs/@fellow99/node-bridge.har` |
+| 包管理（HarmonyOS） | ohpm | 随 CLT | 中心仓依赖 | 消费 `@fellow99/node-bridge` + `@fellow99/node-runtime`（OpenHarmony 三方库中心仓） |
+
 | 包管理（Node 侧） | pnpm（纯 JS，随载荷） | 10.34.6 | 运行时插件安装 | `node-linker=hoisted` + `package-import-method=copy`（无 symlink/hardlink） |
 | 构建脚本 | Node ESM（`.mjs`） | 系统 Node ≥ 18 | 载荷装配/裁剪/打包 | 不引入构建期 npm 依赖 |
 | 存储 | dsh `storage-json` + 会话 JSONL/zstd | 上游 | 会话与 KV | 默认后端，无原生依赖 |
@@ -47,9 +50,10 @@
 
 | 产物 | 来源 | 获取方式 | 校验 |
 |---|---|---|---|
-| `libnode.so`（126,809,264 B） | `electerm/ohos-node-shared` `ohos-node-shared-v24.2.0`；本地缓存 `ohos-node-bridge/runtime/node-v24.2.0/` | `ohos-node-bridge/tools/provision.mjs` | 七项 ELF 门禁 + SHA-256（`runtime.lock.json`） |
-| `libc++_shared.so` | OHOS SDK `native/llvm/lib/aarch64-linux-ohos/` | 同上 | SHA-256 |
-| `@fellow99/node-bridge.har` | 本工作区 `ohos-node-bridge` 构建 | `scripts/build-bridge-har.sh` | 构建产物，gitignored |
+| `libnode.so`（126,809,264 B） | ohpm 包 `@fellow99/node-runtime@24.2.0`（构建源 `electerm/ohos-node-shared` v24.2.0） | `ohpm install`；`assembleHap` 时由 HAR 合入 HAP | SHA-256 对账 `runtime.lock.json`（随 `@fellow99/node-bridge` rawfile 分发；七项 ELF 门禁在上游发布流水线执行） |
+| `libc++_shared.so` | OHOS SDK 产物，随两包分发 | `ohpm install` | HAP 内按路径去重，仅保留一份 |
+| `@fellow99/node-bridge`（API + NAPI 引导件） | ohpm 中心仓 `0.1.0` | `ohpm install` | 版本锁定在 `oh-package.json5` / `oh-package-lock.json5` |
+
 | `dsh.tar.gz`（载荷） | 本仓库装配 | `scripts/assemble-payload.mjs` | `dsh.version` 首行 sha256 |
 | `better_sqlite3.node` | 本仓库交叉编译（仅 G2 未过） | `scripts/build-better-sqlite3.sh` | ELF/ABI 门禁 + `process.dlopen` 冒烟 |
 

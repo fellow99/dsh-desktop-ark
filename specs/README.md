@@ -2,7 +2,8 @@
 
 **项目名称：** DSH Desktop（Ark 版） · `dsh-desktop-ark`
 **版本：** 0.2.1（`versionCode` 201）
-**上游基线：** `deepseek-harness` `dsh-v0.2.1-rc.2` ｜ 运行时 Node **v24.2.0**（`ohos-node-bridge` HAR）
+**上游基线：** `deepseek-harness` `dsh-v0.2.1-rc.2` ｜ 运行时 Node **v24.2.0**（ohpm 中心仓：`@fellow99/node-bridge` + `@fellow99/node-runtime`）
+
 **技术栈：** ArkTS / ArkUI（Stage）· ArkWeb · 进程内 `libnode.so`（`node::Start`）· dsh Host（HTTP + WebSocket）
 **文档生成时间：** 2026-10-18 ｜ **最后更新：** 2026-10-18 ｜ **对应需求：** `000-scaffold`
 

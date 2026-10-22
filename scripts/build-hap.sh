@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
-# 构建 HAP：同步载荷 → ohpm install（首次）→ hvigorw assembleHap。
+# 构建 HAP：同步载荷 → ohpm install（中心仓依赖）→ hvigorw assembleHap。
 #
 # 用法：
 #   bash scripts/build-hap.sh [--debug|--release] [--node-mode jit|compat]
 #   109-jitless：--node-mode 会先调用 scripts/set-node-mode.mjs（同步 BuildConfig 常量与
 #   module.json5 的 JIT 声明面），再构建；不传则沿用当前源码里的形态。
 # 环境：
-#   OHOS_CLT        DevEco Command Line Tools 根（默认 D:/oh-workspace/command-line-tools-6）
+#   OHOS_CLT        DevEco Command Line Tools 根（默认 D:/oh-workspace/command-line-tools）
 #   DEVECO_SDK_HOME SDK 根（默认 $OHOS_CLT/sdk）
-#   ALLOW_MISSING=1 允许缺少 libnode.so 时仍产出 HAP（不可运行 Node）
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-CLT="${OHOS_CLT:-D:/oh-workspace/command-line-tools-6}"
+CLT="${OHOS_CLT:-D:/oh-workspace/command-line-tools}"
 BUILD_MODE="debug"
 NODE_MODE=""
 while [ $# -gt 0 ]; do
@@ -42,33 +41,16 @@ node "$ROOT/scripts/set-inspect.mjs" "$INSPECT_PORT"
 
 echo "[build-hap] mode=$BUILD_MODE sdk=$DEVECO_SDK_HOME"
 
-# 1) HAR 依赖（缺失则现场构建）
-if [ ! -f "$ROOT/libs/@fellow99/node-bridge.har" ]; then
-  echo "[build-hap] 缺少 HAR，先构建 @fellow99/node-bridge"
-  bash "$ROOT/scripts/build-bridge-har.sh"
-fi
-
-# 2) 运行时（可选缺失：只影响运行，不影响编译）
-ALLOW_MISSING="${ALLOW_MISSING:-0}" bash "$ROOT/scripts/provision-runtime.sh" || {
-  status=$?
-  if [ "$status" -ne 0 ]; then
-    echo "[build-hap] 运行时投放失败（status=$status）" >&2
-    exit "$status"
-  fi
-}
-
-# 3) 载荷脚本同步（resfile）
+# 1) 载荷脚本同步（resfile）
 node "$ROOT/scripts/sync-payload.mjs"
 node "$ROOT/scripts/package-payload.mjs"
 
-# 4) ohpm install（首次或依赖变化）
+# 2) ohpm install（中心仓依赖：@fellow99/node-bridge + @fellow99/node-runtime）
 cd "$ROOT"
-if [ ! -d "oh_modules" ]; then
-  echo "[build-hap] ohpm install"
-  cmd //c "$(cygpath -w "$CLT/bin/ohpm.bat") install"
-fi
+echo "[build-hap] ohpm install"
+cmd //c "$(cygpath -w "$CLT/bin/ohpm.bat") install"
 
-# 5) 构建
+# 3) 构建
 HWIGOR_WIN="$(cygpath -w "$CLT/bin/hvigorw.bat")"
 cmd //c "$HWIGOR_WIN --mode module -p product=default -p buildMode=$BUILD_MODE assembleHap --no-daemon"
 

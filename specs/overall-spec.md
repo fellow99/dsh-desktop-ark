@@ -108,4 +108,5 @@
 
 **范围外**：手机形态、PTY 真终端、进程级沙箱、git 工具、多窗口/多实例、自建 Node 运行时、跨设备同步、账号体系改造。
 
-**依赖边界**：上游 dsh 的 profile/bundle/seam 是唯一适配面；运行时的启动/观测/桥由 `ohos-node-bridge` 提供；平台事实以真机实测为准。
+**依赖边界**：上游 dsh 的 profile/bundle/seam 是唯一适配面；运行时的启动/观测/桥由 `@fellow99/node-bridge`（ohpm 中心仓包）提供，引擎由 `@fellow99/node-runtime` 随包分发；平台事实以真机实测为准。
+

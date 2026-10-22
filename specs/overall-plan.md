@@ -13,7 +13,8 @@
 |---|---|
 | 目标平台 | HarmonyOS 2in1 / tablet；`compatibleSdkVersion 5.0.5(17)`、`targetSdkVersion 6.1.1(24)` |
 | 构建工具 | hvigor 6.1.1.280（CLT），`ohpm` 管理 HAR |
-| 运行时 | `@fellow99/node-bridge` HAR 0.1.0 + `libnode.so`（Node v24.2.0，ABI 137） |
+| 运行时 | `@fellow99/node-bridge` 0.1.0 + `@fellow99/node-runtime` 24.2.0（均 ohpm 中心仓；Node v24.2.0，ABI 137） |
+
 | 上游 | `deepseek-harness` tag `dsh-v0.2.1-rc.2` |
 | 渲染 | ArkWeb（系统 Chromium），加载 `http://127.0.0.1:<port>/` |
 | 桥 | 文件信箱（`.tmp→.req→.wip→.done/.fail`，100 ms 轮询） |
@@ -103,11 +104,11 @@
 
 ## 6. 交付与发布
 
-1. `scripts/build-bridge-har.sh` → `libs/@fellow99/node-bridge.har`
-2. `scripts/provision-runtime.sh` → `entry/libs/arm64-v8a/{libnode.so,libc++_shared.so}`
-3. `scripts/assemble-payload.mjs` → 载荷暂存 → `scripts/package-payload.mjs` → `resfile/dsh-payload/`
-4. `scripts/build-hap.sh` → `hvigorw assembleHap` → 签名 HAP
-5. `hdc uninstall/install/aa start` → 真机验证 → 证据入 `logs/`
+1. `ohpm install` → `oh_modules/`（拉取 `@fellow99/node-bridge` 与 `@fellow99/node-runtime`，引擎随包分发）
+2. `scripts/assemble-payload.mjs` → 载荷暂存 → `scripts/package-payload.mjs` → `resfile/dsh-payload/`
+3. `scripts/build-hap.sh` → `ohpm install` → `hvigorw assembleHap` → 签名 HAP
+4. `hdc uninstall/install/aa start` → 真机验证 → 证据入 `logs/`
+
 
 **双发行线**：`standard`（要求 JIT ACL）与 `jitless`（`--jitless`，无 WASM）。同一 HAP 结构，构建参数与 `NodeRuntimeOptions.jitless` 不同；`versionCode` 各自递增。
 
@@ -117,7 +118,8 @@
 
 | 风险 | 缓解 |
 |---|---|
-| `libnode.so` 缺失导致启动即失败 | 本地缓存 `ohos-node-bridge/runtime/` 已就位；`provision.mjs --check` 七项门禁 + SHA-256 校验 |
+| `libnode.so` 缺失导致启动即失败 | `@fellow99/node-runtime` 随包分发（`ohpm install` 即得）；SHA-256 与随包 `runtime.lock.json` 对账 |
+
 | 端口冲突导致进程 abort | 随机端口 + 单实例 + 异常兜底 |
 | 载荷缺失（本轮） | `bootstrap.js` 写 `payload-missing` → 错误页可复制诊断 |
 | 上游 id/契约变更 | `scripts/verify-upstream.mjs` 断言；tag 固定 |

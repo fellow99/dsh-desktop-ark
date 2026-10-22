@@ -139,4 +139,5 @@
 | `payload/shims/fs-link.js` | 64 | S1 文件系统垫片（无宿主能力依赖） |
 | `payload/shims/fs-symlink.js` | 60 | S2 文件系统垫片（无宿主能力依赖） |
 
-> 说明：信箱实现**不在** `payload/shims/`——ArkTS 侧在库的 `HostBridge`，Node 侧在 `ohos-node-bridge/payload/host.js`（未随本仓库载荷分发）。本仓库 `payload/shims/` 只有与能力面间接相关的探针。
+> 说明：信箱实现**不在** `payload/shims/`——ArkTS 侧在 `@fellow99/node-bridge` 包的 `HostBridge`，Node 侧在本仓库 `payload/host.js`（源自上游库参考实现）。本仓库 `payload/shims/` 只有与能力面间接相关的探针。
+

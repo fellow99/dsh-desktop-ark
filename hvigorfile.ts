@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * 签名材料注入（与 ohos-node-bridge / pi-desktop-ark 同一套约定，仓库内不落任何密钥）。
+ * 签名材料注入（与上游库 @fellow99/node-bridge 同一套约定，仓库内不落任何密钥）。
  *
  * 优先级：
  *   ① 环境变量 CERTPATH / STORE_FILE / PROFILE / KEY_ALIAS / KEY_PASSWORD / STORE_PASSWORD / SIGN_ALG

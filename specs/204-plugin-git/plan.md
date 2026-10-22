@@ -1,7 +1,8 @@
 # 技术方案：插件·GIT 操作（204-plugin-git）
 
 > 工程：`dsh-desktop-ark`　需求：`204-plugin-git`
-> 上游基线：`deepseek-harness` `dsh-v0.2.1-rc.2`；运行时 Node **v24.2.0**（`ohos-node-bridge` HAR）
+> 上游基线：`deepseek-harness` `dsh-v0.2.1-rc.2`；运行时 Node **v24.2.0**（`@fellow99/node-runtime` ohpm 包）
+
 > 同源实现：`../dsh-desktop-hos/plugins/harmony-plugin-git`（Electron 版，已真机验收）+ `../dsh-desktop-hos/docs/204-插件-GIT.md`
 > 本文件只写 HOW；WHAT 见 `spec.md`。
 

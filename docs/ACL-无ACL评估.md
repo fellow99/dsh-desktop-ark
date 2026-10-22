@@ -226,3 +226,9 @@ grep -n "globalThis.fetch" build/payload-stage/dsh/node_modules/@deepseek-ai/dsh
 | 形态切换 | `node scripts/set-node-mode.mjs jit|compat`（幂等；同步 `BuildConfig.NODE_MODE` 与 `module.json5` 声明面） |
 | 未覆盖 | `libreoffice-kit`（WASM worker，功能未挂载）、code-mode 类能力：如实失败，不伪造成功 |
 | 声明面口径 | **2026-10-21 R4**：`requestPermissions` 改为**全量对齐参考工程 `pi-desktop-ark`**（compat 20 项 / jit 21 项）；审计口径区分「已声明未使用」与「已使用」（`ACL配置.md` §1 逐项标注） |
+
+---
+
+## 迁移说明（2026-10-22）：ohos-node-bridge → ohpm 中心仓包
+
+> 正文中的 `ohos-node-bridge` 探针实测/引用为当时同级 submodule 的历史口径。2026-10-22 起该库已发布为中心仓双包 `@fellow99/node-bridge@0.1.0` + `@fellow99/node-runtime@24.2.0`，本工程改为常规 ohpm 依赖（libnode.so 随 `@fellow99/node-runtime` 包分发，SHA-256 与随包 `runtime.lock.json` 对账）；探针结论本身不受分发方式影响。现行事实源见 `specs/TECH.md` §3 与 `specs/SPECS_CHECKLIST.md`（2026-10-22 闭合块）。

@@ -138,7 +138,7 @@ await test('.done envelope: result JSON string is unwrapped (ArkTS mailboxSettle
   const dir = newMailbox('envelope')
   const bridge = new HostBridge({ mailbox: dir, pollIntervalMs: 5, defaultTimeoutMs: 2_000 })
   const stop = await serve(dir, (_reqPath, id) => {
-    // ohos-node-bridge 的 mailboxSettle 固定写这个形状；handler 的载荷在 result（字符串）
+    // @fellow99/node-bridge 的 mailboxSettle 固定写这个形状；handler 的载荷在 result（字符串）
     writeFileSync(join(dir, `${id}.done`), JSON.stringify({ ok: true, result: JSON.stringify({ ok: true, data: 'abc', width: 3 }) }))
   })
   try {

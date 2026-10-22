@@ -381,3 +381,9 @@ R4 的 `atm dump -t` 为 **20 项在册、17 项 `grantStatus=0`**，未授予�
 
 **既有实测（2026-10-20，本机）**：`node --jitless` 下兼容层自检 7/7 通过（GET、POST JSON、SSE 分块、
 Abort、FormData、惰性 getter 封印、`fetch` 可用），耗时 ≈195 ms；jit 对照臂 `active=false`（零动作）。
+
+---
+
+## 迁移说明（2026-10-22）：ohos-node-bridge → ohpm 中心仓包
+
+> 正文引用的 `ohos-node-bridge` 探针记录与「委托 `tools/provision.mjs` 投放」口径为当时同级 submodule 的历史做法。2026-10-22 起该库已发布为中心仓双包 `@fellow99/node-bridge@0.1.0` + `@fellow99/node-runtime@24.2.0`，运行时经 `ohpm install` 随包分发，本地投放脚本已删除；探针/权限结论本身不受分发方式影响。现行事实源见 `specs/TECH.md` §3 与 `specs/SPECS_CHECKLIST.md`（2026-10-22 闭合块）。

@@ -28,7 +28,7 @@ HarmonyOS gets **two independent editions** with the same shell architecture, th
 |---|---|---|
 | Renderer | The system **ArkWeb** — nothing bundled | Chromium, shipped inside Electron 37 |
 | Node.js | `libnode.so` started in the app's own process (v24.2.0) | Inside the Electron runtime (Node 22.17) |
-| Runtime plumbing | [`ohos-node-bridge`](../ohos-node-bridge) | [`harmonypc-electron`](../harmonypc-electron) |
+| Runtime plumbing | [`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge) + [`@fellow99/node-runtime`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime) (ohpm) | [`harmonypc-electron`](../harmonypc-electron) |
 | Upstream dsh patches | **0** — profile + bundle layer + audited shims | 13 source patches |
 | Install requirement | none (JIT-free default) | JIT restricted permission (ACL) |
 | Package size | ≈88 MB | Electron-sized (hundreds of MB) |
@@ -58,13 +58,11 @@ The complete matrix — every capability, both editions side by side, with root 
 
 ## Build
 
-Prerequisites: DevEco **Command Line Tools** (SDK API 24), the sibling submodules `../ohos-node-bridge` and `../deepseek-harness`, and a provisioned Node runtime.
+Prerequisites: DevEco **Command Line Tools** (SDK API 24) and the sibling submodule `../deepseek-harness`. The Node runtime is pulled from the OpenHarmony ohpm central repository: [`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge) (API + NAPI bootstrap) and [`@fellow99/node-runtime@24.2.0`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime) (the `libnode.so` engine, SHA-256-locked by the bundled `runtime.lock.json`).
 
 ```bash
-bash scripts/build-bridge-har.sh    # ① Node runtime bridge → libs/@fellow99/node-bridge.har
-bash scripts/provision-runtime.sh   # ② libnode.so + ELF gates + SHA-256
-node scripts/assemble-payload.mjs --deploy --apply   # ③ materialize the dsh runtime
-bash scripts/build-hap.sh           # ④ payload archive + HAP build/sign
+node scripts/assemble-payload.mjs --deploy --apply   # ① materialize the dsh runtime
+bash scripts/build-hap.sh           # ② ohpm install → payload archive + HAP build/sign
 hdc app install -r entry/build/default/outputs/default/entry-default-signed.hap
 ```
 
@@ -84,7 +82,7 @@ hdc app install -r entry/build/default/outputs/default/entry-default-signed.hap
 
 - [`dsh-desktop`](../dsh-desktop) — Electron shell for Windows / Linux / macOS
 - [`dsh-desktop-hos`](../dsh-desktop-hos) — Electron on HarmonyOS Edition
-- [`ohos-node-bridge`](../ohos-node-bridge) — the ArkTS library that embeds Node (`node::Start`)
+- [`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge) / [`@fellow99/node-runtime`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime) — the ohpm packages that embed Node (`node::Start`) in-process
 - [`deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) — the wrapped agent host
 
 ## License

@@ -18,12 +18,13 @@ dsh-desktop-ark/
 ├── scripts/                      # 构建/装配/打包/契约校验
 ├── specs/                        # 规范文档（本目录）
 ├── docs/                         # 工程规划（000-工程规划.md）
-├── libs/@fellow99/               # * node-bridge HAR（构建产物，gitignored）
 ├── build/                        # * 装配暂存与本地自检目录（gitignored）
+
 ├── build-profile.json5           # 产品/模块/SDK 目标
 ├── hvigorfile.ts                 # 签名材料注入（环境变量或 signing.<mode>.local.json）
 ├── hvigor/hvigor-config.json5    # hvigor 版本与执行配置
-├── oh-package.json5              # HAR 依赖（file:./libs/@fellow99/node-bridge.har）
+├── oh-package.json5              # 中心仓依赖（@fellow99/node-bridge + @fellow99/node-runtime）
+
 ├── .gitignore
 ├── README.md
 └── LICENSE
@@ -38,8 +39,8 @@ entry/
 ├── build-profile.json5           # apiType: stageMode；nativeLib.collectAllLibs
 ├── hvigorfile.ts                 # hapTasks
 ├── oh-package.json5              # name=entry, version=1.0.0
-├── libs/arm64-v8a/               # * libnode.so + libc++_shared.so（provision 投放，gitignored）
-├── build/                        # * 产物（entry-default-unsigned.hap 等）
+├── build/                        # * 产物（entry-default-signed.hap 等；libnode.so 由 @fellow99/node-runtime 包合入）
+
 └── src/main/
     ├── module.json5              # deviceTypes 2in1/tablet；singleton；权限与 ACL 声明
     ├── ets/
@@ -97,9 +98,8 @@ packages/bundle-ohos/
 
 | 脚本 | 职责 | 产物 |
 |---|---|---|
-| `build-bridge-har.sh` | 构建 `ohos-node-bridge` HAR 并复制到 `libs/` | `libs/@fellow99/node-bridge.har` |
-| `provision-runtime.sh` | 委托 `provision.mjs` 投放 `libnode.so` / `libc++_shared.so`（七项 ELF 门禁） | `entry/libs/arm64-v8a/*` |
 | `sync-payload.mjs` | `payload/` → `resfile/dsh-payload/`，生成 `dsh.version` | resfile |
+
 | `package-payload.mjs` | `build/payload-stage/dsh` → 确定性 `dsh.tar.gz` + `dsh.version` | resfile |
 | `assemble-payload.mjs` | 装配载荷（dry-run 默认；`--from` 复制运行树） | `build/payload-stage/dsh` |
 | `verify-upstream.mjs` | 校验上游 tag、零补丁、patch id、profile/bundle 可解析 | 退出码 |
@@ -152,9 +152,9 @@ specs/
 
 | 路径 | 归属 | 是否入库 |
 |---|---|---|
-| `libs/@fellow99/node-bridge.har` | `build-bridge-har.sh` | 否 |
-| `entry/libs/arm64-v8a/*.so` | `provision-runtime.sh` | 否 |
+| `oh_modules/**`（含 `@fellow99/node-runtime` 的 `libnode.so`） | `ohpm install` | 否 |
 | `entry/src/main/resources/resfile/dsh-payload/**` | `sync-payload.mjs` / `package-payload.mjs` | 否 |
+
 | `entry/build/**`、`oh_modules/**`、`.hvigor/**`、`build/**` | 构建 | 否 |
 | `signing.*.local.json`、`*.p12/*.cer/*.pem` | 本地签名 | 否 |
 | `docs/**`、`specs/**`、`payload/**`、`scripts/**`、`profiles/**`、`packages/**` | 人写 | 是 |

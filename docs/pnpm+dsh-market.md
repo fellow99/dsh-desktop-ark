@@ -319,3 +319,9 @@ bootstrap.js（主线程：异常兜底 → jitless 兼容层 → 垫片 → 解
 | R7 | 安装通道绕过 `fs-sandbox`：pnpm 直接写 profile 目录 | 安全面扩大 | 安装目录由宿主固定为 profile，**不采信**市场传入的 `invokingDir`；`ignoreScripts` 关闭脚本执行 |
 | R8 | 本宿主不能在线重放组合（`node::Start` 一次、ArkWeb 客户端模块图固定），插件装卸一律「重启生效」 | 体验（多一步重启） | 已实现 `pluginActivation` + bundle 对账：装卸即持久化、重启即生效；这是真机上唯一稳定路径 |
 | R9 | 市场的网络层换成纯 JS undici 替身后，`HTTP(S)_PROXY` 不再生效（`EnvHttpProxyAgent` 是空实现） | 需要代理的环境里市场请求直连并失败 | 设备侧不出网代理；如实登记于 `packages/market-ohos/README*.md`；若将来需要代理，在替身里补 CONNECT 隧道 |
+
+---
+
+## 迁移说明（2026-10-22）：ohos-node-bridge → ohpm 中心仓包
+
+> 本文头部的运行时基线与 `../ohos-node-bridge/docs/001-能力矩阵.md` 引用为当时同级 submodule 的历史口径。2026-10-22 起该库已发布为中心仓双包 `@fellow99/node-bridge@0.1.0` + `@fellow99/node-runtime@24.2.0`，本工程改为常规 ohpm 依赖（Node 仍为 v24.2.0，`worker_threads=true` 探针结论不变）；库文档见 github.com/fellow99/ohos-node-bridge。现行事实源见 `specs/TECH.md` §3 与 `specs/SPECS_CHECKLIST.md`（2026-10-22 闭合块）。

@@ -28,7 +28,7 @@
 |---|---|---|
 | 渲染 | 系统 **ArkWeb** —— 不随包带内核 | Electron 37 内置 Chromium |
 | Node.js | 应用进程内 `libnode.so`（v24.2.0） | Electron 运行时内置（Node 22.17） |
-| 运行时管线 | [`ohos-node-bridge`](../ohos-node-bridge) | [`harmonypc-electron`](../harmonypc-electron) |
+| 运行时管线 | [`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge) + [`@fellow99/node-runtime`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime)（ohpm 中心仓包） | [`harmonypc-electron`](../harmonypc-electron) |
 | 上游 dsh 补丁 | **0** —— profile + bundle 层 + 已审计垫片 | 13 个源码补丁 |
 | 安装要求 | 无（默认无 JIT） | 需 JIT 受限权限（ACL） |
 | 包体 | 约 88 MB | Electron 体量（数百 MB） |
@@ -58,13 +58,11 @@
 
 ## 构建
 
-前置：DevEco **Command Line Tools**（SDK API 24）、同级子模块 `../ohos-node-bridge` 与 `../deepseek-harness`、已投放的 Node 运行时。
+前置：DevEco **Command Line Tools**（SDK API 24）与同级子模块 `../deepseek-harness`。Node 运行时来自 OpenHarmony 三方库中心仓：[`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge)（API + NAPI 引导件）与 [`@fellow99/node-runtime@24.2.0`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime)（`libnode.so` 引擎，SHA-256 由随包 `runtime.lock.json` 锁定），`ohpm install` 自动拉取。
 
 ```bash
-bash scripts/build-bridge-har.sh    # ① Node 运行时桥 → libs/@fellow99/node-bridge.har
-bash scripts/provision-runtime.sh   # ② libnode.so + ELF 门禁 + SHA-256
-node scripts/assemble-payload.mjs --deploy --apply   # ③ 物化 dsh 运行树
-bash scripts/build-hap.sh           # ④ 载荷归档 + HAP 构建/签名
+node scripts/assemble-payload.mjs --deploy --apply   # ① 物化 dsh 运行树
+bash scripts/build-hap.sh           # ② ohpm install → 载荷归档 + HAP 构建/签名
 hdc app install -r entry/build/default/outputs/default/entry-default-signed.hap
 ```
 
@@ -84,7 +82,7 @@ hdc app install -r entry/build/default/outputs/default/entry-default-signed.hap
 
 - [`dsh-desktop`](../dsh-desktop) —— Windows / Linux / macOS 的 Electron 桌面壳
 - [`dsh-desktop-hos`](../dsh-desktop-hos) —— Electron on HarmonyOS 版
-- [`ohos-node-bridge`](../ohos-node-bridge) —— 在应用进程内嵌 Node（`node::Start`）的 ArkTS 库
+- [`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge) / [`@fellow99/node-runtime`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime) —— 以 ohpm 包形态在应用进程内嵌 Node（`node::Start`）
 - [`deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) —— 被封装的上游智能体宿主
 
 ## 许可证

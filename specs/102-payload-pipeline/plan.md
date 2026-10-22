@@ -87,13 +87,15 @@
 | 库注入 | `NODE_BRIDGE_ENTRY`、`NODE_BRIDGE_ARCHIVE_SHA`、`NODE_BRIDGE_CWD`、`NODE_BRIDGE_LIBDIR` 由库设置；本载荷实际只读 `PAYLOAD_ROOT`/`READONLY_ROOT`/`ARCHIVE`，`ARCHIVE_SHA` 未使用 |
 | 上游 | `loadProfileDirectory(name, dir, installAnchor)`、`loadLayeredEnv('dsh')`、`reportSkippedBundles`、`runProfile({environment,profile,resolvedProfile,patchFiles,args})`、`ctx.webServer.{protocol,port}`、`ctx.connection.authenticatedUrl(origin)` |
 | Node 内置 | `zlib.gunzipSync`、`crypto.createHash`、`fs.*Sync`、`module.createRequire`、`url.pathToFileURL` |
-| 项目脚本 | `ohos-node-bridge/tools/provision.mjs --check/--out`；`hvigorw assembleHar`/`assembleHap` |
+| 项目脚本 | `ohpm install`；`hvigorw assembleHap` |
+
 
 ### 5.3 事件协议
 
 - **阶段事件**：`ready.json.phase` 严格单向：`preparing → extracting → starting → ready`，失败分支 `payload-missing`/`failed` 为终态；无事件推送，消费方轮询文件。
 - **日志事件**：`app.log` 行内嵌垫片标记与阶段；`node.log` 由库接管 stdout/stderr。
-- **退出码事件**：`sync-payload`（0/2）、`package-payload`（0，含跳过）、`assemble-payload`（0 dry-run / 2 缺输入）、`build-bridge-har`（0/1/2）、`provision-runtime`（0/2，`ALLOW_MISSING=1` 时 0）。
+- **退出码事件**：`sync-payload`（0/2）、`package-payload`（0，含跳过）、`assemble-payload`（0 dry-run / 2 缺输入）、`ohpm install`（0/非 0）。
+
 
 ## 6. 实现策略
 
@@ -113,7 +115,8 @@
 
 **性能**：包内 `cpSync` 全量复制（同步脚本）；解包整包读入（见 §3.3）；`package-payload` gzip level 9 对 60–90 MB 树耗时可达数十秒，属构建期成本。
 
-**脚本策略**：`sync-payload` 以 `payload/` 为单一事实源重建 resfile，保留已有归档；`package-payload` 无 stage 时跳过；`provision-runtime` 先跑七项 ELF 门禁再投放，缺运行时用 `ALLOW_MISSING=1` 允许仅编译（FR-102-014、FR-102-016、FR-102-018、FR-102-020）。
+**脚本策略**：`sync-payload` 以 `payload/` 为单一事实源重建 resfile，保留已有归档；`package-payload` 无 stage 时跳过；运行时由 ohpm 包 `@fellow99/node-runtime` 随包分发，`ohpm install` 即得，无需本地投放（FR-102-014、FR-102-016、FR-102-018、FR-102-020）。
+
 
 ## 7. 测试考虑
 
@@ -147,5 +150,5 @@
 | `scripts/package-payload.mjs` | 89 | 确定性 ustar + gzip，重写归档与版本声明 |
 | `scripts/assemble-payload.mjs` | 520 | 装配：`--deploy`（deploy/物化/补全/摊平）· `--from` · 剪裁（去 Windows 预编译包、源码、类型、map、文档）· 覆盖层注入 · 断言（`@deepseek-ai/dsh`、web dist、profile、插入行可解析、无链接） |
 | `scripts/smoke-payload.mjs` | 96 | 载荷树冒烟：在宿主 Node 上 `loadProfileDirectory` + `reportSkippedBundles`，断言 8 个 `@dsh-ohos` 行与 7 个禁用行 |
-| `scripts/build-bridge-har.sh` | 30 | 构建并投放 node-bridge HAR |
-| `scripts/provision-runtime.sh` | 33 | 校验并投放 `libnode.so`/`libc++_shared.so` |
+
+

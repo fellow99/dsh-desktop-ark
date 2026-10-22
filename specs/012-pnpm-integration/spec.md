@@ -135,7 +135,8 @@
 
 ## 7. 假设与约束
 
-- 设备 `worker_threads.Worker` 可用（`../ohos-node-bridge/docs/001-能力矩阵.md` #7 探针 `worker_threads=true`）；真实安装路径仍以真机结果为准（设计 R2）。
+- 设备 `worker_threads.Worker` 可用（上游库真机探针 `worker_threads=true`，见 github.com/fellow99/ohos-node-bridge `docs/001-能力矩阵.md` #7）；真实安装路径仍以真机结果为准（设计 R2）。
+
 - pnpm 10 的网络栈走 `make-fetch-happen → minipass-fetch → node:http`（设计 P11），因此 worker 只需封印 `node:http` 的 lazy undici getter。
 - 设备无 `git`、无编译器 ⇒ `git:` 源与需构建脚本的插件不可装。
 - `profileContext.dir` 由 `profileBoot.runProfile({ profile: 'ohos' })` 提供，指向 `<runRoot>/profiles/ohos`。

@@ -7,9 +7,7 @@ entry/build/
 entry/.preview/
 .cxx/
 
-# 不入库的二进制 / 生成物
-libs/**/*.har
-entry/libs/
+# 不入库的二进制 / 生成物（运行时经 ohpm 包 @fellow99/node-runtime 分发）
 entry/src/main/resources/resfile/dsh-payload/
 
 # 签名材料与本地配置

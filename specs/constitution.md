@@ -3,7 +3,8 @@
 > 工程：`dsh-desktop-ark`
 > 版本：v0.1（`000-scaffold`）
 > 状态：**约束性文档**。与本文件冲突的实现一律视为缺陷，而不是"另一种风格"。
-> 依据：`docs/000-工程规划.md` §1–§5、`deepseek-harness` 上游契约、`ohos-node-bridge` 硬约束。
+> 依据：`docs/000-工程规划.md` §1–§5、`deepseek-harness` 上游契约、`@fellow99/node-bridge` / `@fellow99/node-runtime`（ohpm 中心仓包）契约。
+
 
 本文件只写**能被检查**的原则：每条都有"违反时的可观察症状"。不可检查的口号不写入。
 

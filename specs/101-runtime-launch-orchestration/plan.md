@@ -9,7 +9,8 @@
 |---|---|
 | 语言 / 框架 | ArkTS（Stage 模型）、ArkUI 状态管理（`@State`） |
 | SDK | `compatibleSdkVersion 5.0.5(17)`、`targetSdkVersion 6.1.1(24)` |
-| 构建 | hvigor 6.1.1.280（CLT），HAR 依赖 `libs/@fellow99/node-bridge.har` |
+| 构建 | hvigor 6.1.1.280（CLT），ohpm 依赖 `@fellow99/node-bridge` + `@fellow99/node-runtime` |
+
 | 运行时库 | `@fellow99/node-bridge` 0.1.0；Node **v24.2.0**（ABI 137），进程内 `node::Start` |
 | 上游 | `deepseek-harness` `dsh-v0.2.1-rc.2`（由模块 102 装配为载荷） |
 | 设备形态 | 2in1 / tablet（`module.json5` 已限定） |

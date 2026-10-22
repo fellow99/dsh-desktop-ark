@@ -133,3 +133,9 @@ platforms for security reasons." —— 与 OHOS 的 W^X 约束一致。
 ## 8. 下一步
 
 实现与验收见 [`../specs/109-jitless/`](../specs/109-jitless/)：`spec.md` → `plan.md` → `tasks.md` → `test-cases.md`。
+
+---
+
+## 迁移说明（2026-10-22）：ohos-node-bridge → ohpm 中心仓包
+
+> 正文引用的 `ohos-node-bridge` 契约（如 §2.6）为当时同级 submodule 的历史口径。2026-10-22 起该库已发布为中心仓双包 `@fellow99/node-bridge@0.1.0` + `@fellow99/node-runtime@24.2.0`，本工程改为常规 ohpm 依赖；库文档见 github.com/fellow99/ohos-node-bridge，现行事实源见 `specs/TECH.md` §3 与 `specs/SPECS_CHECKLIST.md`（2026-10-22 闭合块）。

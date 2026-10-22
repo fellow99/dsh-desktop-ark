@@ -33,7 +33,8 @@
 | C10 权限最小化 | ❌（当前） | 14 项申请 + 2 项自定义声明，其中 `RUNNING_LOCK`、`KEEP_BACKGROUND_RUNNING`、`LOCK_WINDOW_CURSOR` 全仓无使用点（仅出现在 `module.json5`），命中"C10 违反症状" |
 | C11 秘密不入库 | ✅ | `.gitignore` 覆盖 `signing.*.local.json`、`*.p12`、`*.cer`、`*.pem`、`*.keystore`；仓库内无密钥文件 |
 | C12 编号即契约 | ⚠️ | `specs/108-*` 已建；`SPECS_CHECKLIST.md` 仍不存在，C12 的检查点无法执行 |
-| C13 可复现 | ⚠️ | 二进制已 gitignore（`libs/*.har`、`entry/libs/`、`resfile/dsh-payload/`）；但 `build-hap.sh` 依赖 `cygpath`/`cmd //c` 与硬编码 CLT 路径（`:11`、`:47`、`:49-50`），跨机复现不成立 |
+| C13 可复现 | ⚠️ | 二进制已 gitignore（`oh_modules/`、`resfile/dsh-payload/`）；但 `build-hap.sh` 依赖 `cygpath`/`cmd //c` 与硬编码 CLT 路径（`:11`、`:47`、`:49-50`），跨机复现不成立 |
+
 | C14 状态标注 | ⚠️ | `overall-plan.md` §6 描述"双发行线：同一 HAP 结构，构建参数与 `NodeRuntimeOptions.jitless` 不同"，但实现只有单一 product 且 `DshRuntime.ets:103` 硬编码 `jitless: false` —— 文档描述超前于实现 |
 
 ---
@@ -47,7 +48,8 @@
 - **F7 签名注入契约**：`build-profile.json5:5` 的 `signingConfigs` 为空；`hvigorfile.ts:95-136` 在 `afterNodeEvaluate` 中注入——优先环境变量（`CERTPATH`/`STORE_FILE`/`STORE_PASSWORD`/`KEY_PASSWORD`，可选 `PROFILE`/`KEY_ALIAS`/`SIGN_ALG`，`:77-87`），其次 `signing.<mode>.local.json`（`:88-92`），都没有则告警并产出未签名包（`:107-112`）；`SIGN_MODE` 非法直接 `fail`（`:41-46`）；必填字段 `certpath`/`storeFile`/`keyPassword`/`storePassword`（`:29`）。与 FR-108-014…018 一致。
 - **F8 双发行线未实现**：`build-profile.json5:24-27` 只有 `debug`/`release` 两种 buildMode、`products` 只有 `default`；`DshRuntime.ets:103` 硬编码 `jitless: false`；`scripts/build-hap.sh:15-21` 只接受 `--debug`/`--release`，无 `--jitless`、无 flavor、不读写版本号。FR-108-004/005/021/022 均为 planned。
 - **F9 构建脚本平台绑定**：`scripts/build-hap.sh:13` 默认 CLT 为 `D:/oh-workspace/command-line-tools-6`；`:51`/`:56` 用 `cmd //c`，`:55` 用 `cygpath -w`；末行 `ls -l entry/build/default/outputs/default/`（`:59`）依赖固定产品名。脚本没有 `assemble-app`、没有包体统计、没有版本号校验（FR-108-019/023 planned）。
-- **F10 二进制与密钥隔离**：`.gitignore` 已覆盖 `libs/*.har`、`entry/libs/`、`entry/src/main/resources/resfile/dsh-payload/`、`signing.*.local.json`、`*.p12`、`*.cer`、`*.pem`、`*.keystore`、`*.log`（C11/C13/FR-108-020 支撑）。
+- **F10 二进制与密钥隔离**：`.gitignore` 已覆盖 `oh_modules/`、`entry/src/main/resources/resfile/dsh-payload/`、`signing.*.local.json`、`*.p12`、`*.cer`、`*.pem`、`*.keystore`、`*.log`（C11/C13/FR-108-020 支撑）；运行时二进制经 ohpm 中心仓包分发，不入库。
+
 - **F11 体积未度量**：`libnode.so` 约 126.8 MB（TECH §3），HAP ≤ 200 MB 的余量取决于压缩率与载荷体积；当前无任何脚本或门禁统计（FR-108-023 planned）。
 - **F12 合规材料缺失**：`docs/` 只有 `000-工程规划.md`；`docs/010-P0门禁报告.md`、`docs/020-ACL配置.md` 均不存在，AI 合规（§12.2）无落点文件（FR-108-024 planned）。
 
@@ -92,7 +94,8 @@
 | 契约 | 来源 | 备注 |
 |---|---|---|
 | hvigor / ohpm / CLT 与 SDK | 外部命令行工具 | 版本见 `TECH.md` |
-| HAR 与原生库 | `scripts/build-bridge-har.sh`、`scripts/provision-runtime.sh` | 缺失时 `build-hap.sh` 先构建或报错 |
+| 运行时与桥接库 | ohpm 中心仓包 `@fellow99/node-bridge`、`@fellow99/node-runtime` | `ohpm install` 拉取；缺失时 `build-hap.sh` 报错 |
+
 | 载荷 | `scripts/sync-payload.mjs`、`scripts/package-payload.mjs` | 幂等键写入 `dsh.version` |
 | 权限使用方 | `104`（剪贴板/外部打开）、`106`（三个用户目录） | 决定哪些权限可保留 |
 | 发行线开关 | `101` 的 `NodeRuntimeOptions.jitless`（当前硬编码 false） | FR-108-021/022 的落地前置 |
@@ -144,8 +147,7 @@
 | `entry/build-profile.json5` | implemented | `collectAllLibs`；无 C++ 编译 |
 | `hvigorfile.ts` | implemented | 签名注入（env → 本地文件 → 未签名包） |
 | `scripts/build-hap.sh` | implemented（需去平台绑定） | `--debug`/`--release` |
-| `scripts/build-bridge-har.sh` | implemented | 构建 HAR（产物 gitignored） |
-| `scripts/provision-runtime.sh` | implemented | 投放 `libnode.so`/`libc++_shared.so` |
+
 | `scripts/sync-payload.mjs` / `package-payload.mjs` | implemented | 载荷同步与确定性归档 |
 | `.gitignore` | implemented | 二进制、载荷、密钥隔离 |
 | `docs/020-ACL配置.md` | planned | 授权面材料与装机失败码 |

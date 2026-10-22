@@ -88,7 +88,15 @@
 **已闭合（2026-10-18）**
 
 - 运行时投放：`libnode.so`（126,809,264 B）+ `libc++_shared.so` 已投放至 `entry/libs/arm64-v8a/`，七项 ELF 门禁全过；HAP 由 818 KB 变为 44 MB（含运行时）。
-- `ohos-node-runtime` 归属：已迁入 `ohos-node-bridge/runtime/`（本地缓存 + `SHA256SUMS` + 各版本 `PROVENANCE.md`；唯一事实源仍是 `ohos-node-bridge/runtime.lock.json`）。
+- `ohos-node-runtime` 归属：已迁入 `ohos-node-bridge/runtime/`（本地缓存 + `SHA256SUMS` + 各版本 `PROVENANCE.md`；唯一事实源是 `runtime.lock.json`，2026-10-22 起随 `@fellow99/node-bridge` 包内 rawfile 分发）。
+
+**已闭合（2026-10-22，依赖来源切换：旁路 submodule → ohpm 中心仓）**
+
+- 上游库 `ohos-node-bridge` 已以双包发布到 OpenHarmony 三方库中心仓：`@fellow99/node-bridge@0.1.0`（API + NAPI 引导件）与 `@fellow99/node-runtime@24.2.0`（`libnode.so`，版本号 = Node 版本）。本工程改为常规 ohpm 依赖（`oh-package.json5`），删除 `scripts/build-bridge-har.sh`、`scripts/provision-runtime.sh` 与本地投放路径 `entry/libs/`、`libs/`。
+- 构建证据：`bash scripts/build-hap.sh --debug` → `BUILD SUCCESSFUL`（30.5 s）；HAP ≈ 91.8 MB，含 `libs/arm64-v8a/{libnode.so,libnode_bridge.so,libnode_host_client.so,libc++_shared.so}`（`libc++_shared.so` 按路径去重仅一份）。
+- 供应链证据：`ohpm install` 拉取的 `libnode.so` SHA-256 = `3019bf5f9a279d98a87606fc13c53b0e797b6a50cf174f8a1243d880c71151a1`，与随包 `runtime.lock.json` 锁值逐字一致。
+- 真机证据（3QC0226526001227，HarmonyOS 6.1.x / 2in1）：全新安装启动后 `ready.json` `phase=ready`（0.2.1），5 个垫片安装、`node:sqlite`+FTS5 可用、jitless 自检 7/7、git 插件 21 工具注册、ArkWeb 渲染完整 dsh Web UI（新建会话/工作区/插件等，`uitest dumpLayout` + 截图取证）。
+
 
 ---
 
