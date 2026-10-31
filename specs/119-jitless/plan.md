@@ -1,6 +1,6 @@
-# 109 无 JIT 模式 —— 实现方案（plan）
+# 119 无 JIT 模式 —— 实现方案（plan）
 
-> 对应 spec：`specs/109-jitless/spec.md`｜决策：`docs/109-jitless-方案决策.md`｜更新：2026-10-20
+> 对应 spec：`specs/119-jitless/spec.md`｜决策：`docs/119-jitless-方案决策.md`｜更新：2026-10-20
 
 ## 1. 落点总览
 
@@ -20,11 +20,11 @@
 ## 2. 关键实现决策
 
 1. **形态只认常量**：`NodeMode.resolve()` 不读权限位做决策；ACL 探测只拼 `reason`（排障用）。
-   非法常量 → fail-safe `compat`（FR-109-006）。
+   非法常量 → fail-safe `compat`（FR-119-006）。
 2. **`--jitless` 由库注入**：`NodeRuntimeOptions.jitless = true`（`NodeRuntime.ets:233` 会补齐且排在脚本路径前），
    不再自己拼 flags，避免同一参数两处来源。
 3. **兼容层唯一开关**：`typeof WebAssembly === 'undefined'`。WASM 可用时直接返回
-   `{active:false, webAssembly:'defined'}`，**不改任何全局**（NFR-109-001）。
+   `{active:false, webAssembly:'defined'}`，**不改任何全局**（NFR-119-001）。
 4. **顺序承重**：先 `sealHttpLazyUndici()`，再 `installFetchShim()` —— 反序会在读
    `globalThis.Headers` 时先把 undici 拉起来。
 5. **不碰上游**：兼容层只新增文件；`undici` 包不做条件入口（本工程无进程内消费者，见决策文档 §2 第 3 行）。

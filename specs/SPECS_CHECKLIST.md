@@ -2,7 +2,7 @@
 
 > 工程：`dsh-desktop-ark`
 > 需求：`000-scaffold`（工程搭建）
-> 更新：2026-10-18
+> 更新：2026-11-01（按父工程编号规则整理：0XX 公共 / 1XX 基础 / 2XX 插件）
 > 状态取值：`✅ Done`（已写且有源码/证据）｜`🟡 Partial`（部分实现/部分章节）｜`⬜ Planned`（仅设计）
 
 ---
@@ -38,8 +38,12 @@
 | M-106 | 工作区选择 | [spec](./106-workspace-picker/spec.md) | [plan](./106-workspace-picker/plan.md) | ⬜ Planned | 设计见 `docs/000-工程规划.md` §5.2 |
 | M-107 | 诊断与可观测 | [spec](./107-diagnostics-observability/spec.md) | [plan](./107-diagnostics-observability/plan.md) | 🟡 Partial | `payload/selfcheck.js`；`/_ohos/facts` 未实现 |
 | M-108 | 合规与发布 | [spec](./108-compliance-release/spec.md) | [plan](./108-compliance-release/plan.md) | 🟡 Partial | `module.json5`、`build-profile.json5`、`hvigorfile.ts` |
+| M-119 | 无 JIT 模式（原 109） | [spec](./119-jitless/spec.md) | [plan](./119-jitless/plan.md) | ✅ Done | `payload/jitless/**`、`scripts/set-node-mode.mjs`；本机 + 真机双形态 |
+| M-110 | pnpm 集成（原 012） | [spec](./110-pnpm-integration/spec.md) | [plan](./110-pnpm-integration/plan.md) | ✅ Done | `packages/market-ohos` + `scripts/assemble-payload.mjs`；单测 9/9 |
+| M-201 | 插件市场 | [spec](./201-dsh-market/spec.md) | [plan](./201-dsh-market/plan.md) | ✅ Done（UI 点击部分待补） | `dshmarket@1.66.42` 随包 |
 | M-204 | 插件：GIT 操作（需求 204） | [spec](./204-plugin-git/spec.md) | [plan](./204-plugin-git/plan.md) | 🟡 Partial | `packages/git-ohos/**`（21 工具 + 设置页）、`scripts/assemble-payload.mjs` 的 `collectGitRuntime()`、`bundle-ohos` 一行、`scripts/set-inspect.mjs`；真机证据见 `logs/20261021-1/TEST_REPORT.md`（`/logs` 不入库） |
 | M-205 | 插件：品牌位（需求 205） | [spec](./205-plugin-branding/spec.md) | [plan](./205-plugin-branding/plan.md) | ✅ Done | `packages/branding-ohos/**`（host 半边：标题 + `style` 行；browser 半边：三个品牌槽位 + 标题守卫）、`packages/bundle-ohos/cordis.patch.yml`（挂载行 + 首次引导两行配置 + `ui-brand-official` 禁用）、`scripts/verify-upstream.mjs` 的 6/7/8 号门禁；证据：`verify-upstream` / `smoke-payload` 通过、宿主 Node 端到端 14 项断言（zh-CN + en-US）+ 负向对照；真机未验 |
+| M-013 | 品牌化（应用级） | [spec](./013-branding/spec.md) | [plan](./013-branding/plan.md) | ✅ Done | `AppScope/**`、`entry/src/main/resources/**`；与 205 分工 |
 
 ---
 
@@ -78,12 +82,12 @@
 
 ## 四、缺口与后续需求
 
-| 缺口 | 归属 | 建议需求编号 |
+| 缺口 | 归属 | 后续编号 |
 |---|---|---|
-| `@dsh-ohos/*` seam 插件已落地 10 个包（本轮补 S6 与 picker 自实现），真机端到端仍待复验 | `104`/`106` | `001-adapters`（复验） |
-| `/_ohos/facts` 端点 | `107` | `002-diagnostics` |
-| 双发行线（standard / jitless） | `108` | `003-release` |
-| 真实 dsh 载荷装配（pnpm deploy + 裁剪） | `102` | `004-payload` |
+| `@dsh-ohos/*` seam 插件已落地 10 个包（本轮补 S6 与 picker 自实现），真机端到端仍待复验 | `104`/`106` | 待定（按 1XX 规则分配） |
+| `/_ohos/facts` 端点 | `107` | 待定（按 1XX 规则分配） |
+| 双发行线（standard / jitless） | `108` | 待定（按 1XX 规则分配） |
+| 真实 dsh 载荷装配（pnpm deploy + 裁剪） | `102` | 待定（按 1XX 规则分配） |
 
 **已闭合（2026-10-18）**
 
@@ -108,10 +112,11 @@
 
 ---
 
-## 新增模块（本轮：012 / 201）
+## 新增模块（本轮：110 / 201 / 013）
 
 | # | 模块 | 文档 | 状态 | 证据 |
 |---|---|---|---|---|
-| M-012 | pnpm 集成 | `012-pnpm-integration/{spec,plan,tasks,test-cases}.md` | ✅ Done | `packages/market-ohos` + `scripts/assemble-payload.mjs`；单测 9/9；本机 `--jitless` 与真机安装/卸载闭环 |
+| M-110 | pnpm 集成 | `110-pnpm-integration/{spec,plan,tasks,test-cases}.md` | ✅ Done | `packages/market-ohos` + `scripts/assemble-payload.mjs`；单测 9/9；本机 `--jitless` 与真机安装/卸载闭环 |
 | M-201 | 插件市场 | `201-dsh-market/{spec,plan,tasks,test-cases}.md` | ✅ Done（UI 点击部分待补） | `dshmarket@1.66.42` 随包；`/dsh-market/installed` 返回 `profile=ohos`；`/dsh-market/install|uninstall` 真机 200 |
+| M-013 | 品牌化（应用级） | `013-branding/{spec,plan}.md` | ✅ Done | `AppScope/**`、`entry/src/main/resources/**`；Web 品牌位归 205 |
 | D-01 | 设计 | `../docs/pnpm+dsh-market.md` | ✅ Done | 设计评审 v2 放行（含 P12 undici 替身、R9 代理语义损失） |

@@ -1,11 +1,11 @@
-# 109-jitless 方案决策（头脑风暴 + 可行性评估）
+# 119-jitless 方案决策（头脑风暴 + 可行性评估）
 
 | 项 | 内容 |
 |---|---|
 | 日期 | 2026-10-20 |
-| 需求 | **109-jitless 无 JIT 模式**：同一份代码兼容「有 ACL（JIT + WASM）」与「无 ACL（必须 `--jitless`，无 WASM）」两种运行形态 |
+| 需求 | **119-jitless 无 JIT 模式**：同一份代码兼容「有 ACL（JIT + WASM）」与「无 ACL（必须 `--jitless`，无 WASM）」两种运行形态 |
 | 涉及工程 | 父工程（仅子模块指针，不改动）＋ `dsh-desktop-ark`（全部实现与文档） |
-| 规范产出 | [`../specs/109-jitless/`](../specs/109-jitless/)（spec / plan / tasks / test-cases） |
+| 规范产出 | [`../specs/119-jitless/`](../specs/119-jitless/)（spec / plan / tasks / test-cases） |
 | 输入依据 | [`ACL配置.md`](ACL配置.md)、[`ACL-无ACL评估.md`](ACL-无ACL评估.md)、参考工程 `pi-desktop-ark` 的 `docs/108-jitless-方案决策.md` 与 `payload/jitless/**` |
 | 取证口径 | ✅ 本机/真机实测 ｜ 🔶 沿用他工程一手记录 ｜ ⚠️ 推断（链路完整未直测） ｜ ⬜ 未取证 |
 
@@ -132,7 +132,7 @@ platforms for security reasons." —— 与 OHOS 的 W^X 约束一致。
 
 ## 8. 下一步
 
-实现与验收见 [`../specs/109-jitless/`](../specs/109-jitless/)：`spec.md` → `plan.md` → `tasks.md` → `test-cases.md`。
+实现与验收见 [`../specs/119-jitless/`](../specs/119-jitless/)：`spec.md` → `plan.md` → `tasks.md` → `test-cases.md`。
 
 ---
 

@@ -8,7 +8,7 @@
 > - `../dsh-desktop-hos/docs/204-插件-GIT.md`（同需求的 Electron 版设计与真机验收记录，**本规格的同源依据**）
 > - `../dsh-desktop-hos/docs/鸿蒙环境能力清单-v0.1.5.md`（设备能力现状；本工程另见 `../dsh-desktop-ark/docs/010-真机调试记录.md`）
 > - `../dsh-desktop-hos/specs/204-plugin-git/`（同源 spec/plan/tasks/test-cases）
-> - 本工程：`specs/105-upstream-adapter-bundle/`（seam 插件与 bundle 覆盖层范式）、`specs/106-workspace-picker/`（dual-face 插件范式）、`specs/109-jitless/`（`--jitless` 形态）、`specs/constitution.md`（C1–C14）
+> - 本工程：`specs/105-upstream-adapter-bundle/`（seam 插件与 bundle 覆盖层范式）、`specs/106-workspace-picker/`（dual-face 插件范式）、`specs/119-jitless/`（`--jitless` 形态）、`specs/constitution.md`（C1–C14）
 > 需求语言遵循 RFC 2119（MUST / SHOULD / MAY）。**本文件只写 WHAT（可验证的行为），实现细节在 `plan.md`。**
 
 ---
@@ -141,7 +141,7 @@
 | L1 | `rebase` 不交付：isomorphic-git 无该原语，自研等于重写提交重放引擎 | 上游 API 面零命中 |
 | L2 | SSH 不可用：只能 HTTPS 用户名/密码；`git@host:path` 与 `ssh://` 被库改写为 https（丢弃用户名） | 库无 SSH 客户端 |
 | L3 | 载荷增量约 8.5 MiB（isomorphic-git 闭包 55 包）；jsdiff 复用宿主闭包 | 物化实测 |
-| L4 | 纯 JS 性能：clone 大仓库明显慢于原生 git；`--jitless` 下解释执行更慢 | 形态约束（109-jitless） |
+| L4 | 纯 JS 性能：clone 大仓库明显慢于原生 git；`--jitless` 下解释执行更慢 | 形态约束（119-jitless） |
 | L5 | 围栏粒度是**仓库根**：仓内部写入不逐次经 `fs-sandbox.checkedTarget`（比 exec 无围栏更严） | 安全取舍 |
 | L6 | 凭据页无法枚举 ref（凭据 API 无枚举面），页面用 `localStorage` 记住「用户录入过的主机」；页面 origin 每次启动变化 ⇒ 重启后该列表为空（凭据本身不受影响） | 上游 API 面 |
 | L7 | 不交付「运行时弹窗索要凭据」的交互：缺凭据只给指引 | 客户端无 authorization 流程面 |

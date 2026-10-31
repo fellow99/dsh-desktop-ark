@@ -74,7 +74,7 @@ function installExceptionHandlers() {
 }
 
 /**
- * 109-jitless：安装纯 JS 兼容层（只在 `WebAssembly === undefined` 时真正接管）。
+ * 119-jitless：安装纯 JS 兼容层（只在 `WebAssembly === undefined` 时真正接管）。
  *
  * 失败绝不阻断启动：记一行事实并返回 failed 形态；`fetch` 是否可用由自检如实上报。
  */
@@ -225,7 +225,7 @@ async function main() {
   installExceptionHandlers();
   log(`bootstrap: start (readonlyRoot=${READONLY_ROOT || '-'}, assetDir=${ASSET_DIR})`);
 
-  // 109-jitless：兼容层必须在任何 fetch 使用之前安装；WASM 可用时它一个动作都不做。
+  // 119-jitless：兼容层必须在任何 fetch 使用之前安装；WASM 可用时它一个动作都不做。
   const compat = installCompatLayer();
 
   // 012/201：worker 是新的 realm —— V8 开关与模块全局各线程一份，主线程装过的兼容层带不过去。
@@ -239,7 +239,7 @@ async function main() {
 
   writeReady({ phase: 'preparing', sha12: version.sha12 || '', shims: shims.map((s) => s.marker), compat });
 
-  // 自检放在 preparing 公告之后，并带总预算：绝不拖住启动（FR-109-017 / 评审 #2）。
+  // 自检放在 preparing 公告之后，并带总预算：绝不拖住启动（FR-119-017 / 评审 #2）。
   compat.selfcheck = await runCompatSelfCheck(compat, 1200);
 
   const runRoot = resolveRunRoot(version);

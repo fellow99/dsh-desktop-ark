@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 109-jitless：切换 Node 运行形态（**编译期**开关）。
+ * 119-jitless：切换 Node 运行形态（**编译期**开关）。
  *
  *   node scripts/set-node-mode.mjs compat     # 默认：不声明 JIT ACL + --jitless + 载荷兼容层
  *   node scripts/set-node-mode.mjs jit        # 有 ACL：成对声明 JIT 权限 + 不带 --jitless

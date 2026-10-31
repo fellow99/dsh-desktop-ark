@@ -1,12 +1,12 @@
-# pnpm 集成与插件市场（012-pnpm-integration / 201-dsh-market）设计
+# pnpm 集成与插件市场（110-pnpm-integration / 201-dsh-market）设计
 
 **工程：** `dsh-desktop-ark` · 版本 0.2.1（versionCode 201）
 **上游基线：** `deepseek-harness` `dsh-v0.2.1-rc.2` ｜ 运行时 Node **v24.2.0**（`ohos-node-bridge` HAR，进程内 `libnode.so`）
 **市场基线：** `dsh-market`（`../dsh-market`）**1.66.42** ｜ **pnpm 引擎基线：** `pnpm@10.34.6`
 **同源实现：** `../dsh-desktop-hos`（Electron 版，已真机验收）
-- `../dsh-desktop-hos/docs/012-pnpm+dsh-market.md`（方案与决策过程）
+- `../dsh-desktop-hos/docs/110-pnpm+dsh-market.md`（方案与决策过程）
 - `../dsh-desktop-hos/docs/pnpm对接问题排查.md`（真机故障矩阵）
-- `../dsh-desktop-hos/specs/012-pnpm-integration/`、`../dsh-desktop-hos/specs/201-dsh-market/`
+- `../dsh-desktop-hos/specs/110-pnpm-integration/`、`../dsh-desktop-hos/specs/201-dsh-market/`
 
 **状态：** 设计 v2（已按设计评审 R1 修订：删除同线程降级、去掉 profile `dependencies.dshmarket`、worker 内装 jitless 兼容层、`autoInstallPeers:false`、`storeDir` 运行期绝对路径、busy 改同步抛错、只认 `profileContext.dir`）
 
@@ -18,7 +18,7 @@
 
 | 需求 | 一句话 | 交付物 |
 |---|---|---|
-| `012-pnpm-integration` | 让设备上**没有 pnpm 二进制也能装 npm 包** | 随包物化的纯 JS pnpm 引擎 + 进程内（worker 线程）调用器 |
+| `110-pnpm-integration` | 让设备上**没有 pnpm 二进制也能装 npm 包** | 随包物化的纯 JS pnpm 引擎 + 进程内（worker 线程）调用器 |
 | `201-dsh-market` | 让设置页出现**插件市场**，且「安装 / 卸载」真的生效 | `dshmarket` 物化进载荷 + profile 声明 + 宿主 `desktopProfiles` / `desktopPnpm` 契约 |
 
 一句话架构：**构建期把 pnpm 与 dshmarket 装进载荷；运行期由 `@dsh-ohos/market` 一行插件在同一进程的 worker 线程里跑 pnpm，满足市场已内置的 `desktopProfiles` / `desktopPnpm` 特性检测**。不 spawn 子进程、不建符号链接、不改 `dsh-market` 与 `deepseek-harness` 的源码。
@@ -37,10 +37,10 @@
 | P6 | 设备无 `git` 二进制 | `docs/鸿蒙环境能力清单-0.2.1.md` | 市场里 `git:` 源插件不可安装；须在文档披露 |
 | P7 | 载荷按 sha256 前 12 位分代解包：`<filesDir>/payload/<sha12>/dsh` | `payload/bootstrap.js` `resolveRunRoot()` | **profile 在载荷内** ⇒ 装进 profile 的插件属于「本代载荷」，换包即失效（§8 L1） |
 | P8 | 本工程 profile 固定 `<runRoot>/profiles/ohos`，bundle 解析第一锚点是 `<runRoot>/node_modules/@deepseek-ai/dsh/package.json` | `profile.ts:714-725`、`payload/host.js` | dshmarket 物化到 `<runRoot>/node_modules/dshmarket` 即可被命中；**不需要**像 hos 那样复制到 `$DSH_HOME`（§4.9） |
-| P9 | `node:sqlite` 在本工程可用（含 FTS5） | `payload/shims/sqlite.js`、`specs/109-jitless/spec.md` | pnpm 11 的 store 理论上可用；本期仍沿用同源已验收的 pnpm 10（§4.2） |
-| P10 | 运行时形态固定 `compat`（`--jitless`）⇒ `WebAssembly === undefined`，且**每个 realm 各有一份全局** | `payload/jitless/index.js` 头部注释、`docs/109-jitless-方案决策.md` | worker 是**新 realm**，兼容层与垫片必须重装（§3.3）；安装耗时按分钟级预算（R2） |
+| P9 | `node:sqlite` 在本工程可用（含 FTS5） | `payload/shims/sqlite.js`、`specs/119-jitless/spec.md` | pnpm 11 的 store 理论上可用；本期仍沿用同源已验收的 pnpm 10（§4.2） |
+| P10 | 运行时形态固定 `compat`（`--jitless`）⇒ `WebAssembly === undefined`，且**每个 realm 各有一份全局** | `payload/jitless/index.js` 头部注释、`docs/119-jitless-方案决策.md` | worker 是**新 realm**，兼容层与垫片必须重装（§3.3）；安装耗时按分钟级预算（R2） |
 | P11 | pnpm 10 的网络栈是 `make-fetch-happen` → `minipass-fetch` → `node:http/https`（**待真机取证**：`grep -c "make-fetch-happen" <引擎>/dist/pnpm.cjs`） | 构建机实测 `pnpm/dist/node_modules` 含 `make-fetch-happen`/`minipass-fetch`，无 `undici` | worker 装整层兼容层（封印 `node:http` lazy getter + 纯 JS `fetch`）；pnpm 不用 global fetch，二者不冲突 |
-| P12 | `dsh-market` 直接 `import { Agent, EnvHttpProxyAgent, fetch } from 'undici'`（`src/net.ts:33`），undici 的 HTTP 解析器是 WASM 版 llhttp | 本机 `node --jitless` 实测：import undici 后 fetch 抛 `WebAssembly is not defined`；全局 fetch 垫片拦不到模块级 import | 构建期把 `dshmarket/node_modules/undici` 换成纯 JS 替身（`payload/shims/undici`，复用 109 的 `fetch-shim`）；**语义损失**：代理/HTTP2/连接池不支持（R9） |
+| P12 | `dsh-market` 直接 `import { Agent, EnvHttpProxyAgent, fetch } from 'undici'`（`src/net.ts:33`），undici 的 HTTP 解析器是 WASM 版 llhttp | 本机 `node --jitless` 实测：import undici 后 fetch 抛 `WebAssembly is not defined`；全局 fetch 垫片拦不到模块级 import | 构建期把 `dshmarket/node_modules/undici` 换成纯 JS 替身（`payload/shims/undici`，复用 119 的 `fetch-shim`）；**语义损失**：代理/HTTP2/连接池不支持（R9） |
 
 ---
 
@@ -281,7 +281,7 @@ bootstrap.js（主线程：异常兜底 → jitless 兼容层 → 垫片 → 解
 | 9 | 单测 | `packages/market-ohos/test/*.test.mjs` | 引擎断言、argv/`--dir` 合成、单飞抛错、symlink 回退 |
 | 10 | 包文档 | `packages/market-ohos/README.md`、`README_zh.md` | 契约、配置、限制 |
 | 11 | 工程文档 | `README.md`、`README_zh.md`、`docs/鸿蒙环境能力清单-0.2.1.md`、`specs/README.md`、`specs/SPECS_CHECKLIST.md` | 能力清单 #33 / D.2 状态更新 |
-| 12 | 规格 | `specs/012-pnpm-integration/`、`specs/201-dsh-market/` | spec / plan / tasks / test-cases |
+| 12 | 规格 | `specs/110-pnpm-integration/`、`specs/201-dsh-market/` | spec / plan / tasks / test-cases |
 
 ---
 
@@ -322,6 +322,6 @@ bootstrap.js（主线程：异常兜底 → jitless 兼容层 → 垫片 → 解
 
 ---
 
-## 迁移说明（2026-10-22）：ohos-node-bridge → ohpm 中心仓包
-
-> 本文头部的运行时基线与 `../ohos-node-bridge/docs/001-能力矩阵.md` 引用为当时同级 submodule 的历史口径。2026-10-22 起该库已发布为中心仓双包 `@fellow99/node-bridge@0.1.0` + `@fellow99/node-runtime@24.2.0`，本工程改为常规 ohpm 依赖（Node 仍为 v24.2.0，`worker_threads=true` 探针结论不变）；库文档见 github.com/fellow99/ohos-node-bridge。现行事实源见 `specs/TECH.md` §3 与 `specs/SPECS_CHECKLIST.md`（2026-10-22 闭合块）。
+## 迁移说明（2026-10-22）：ohos-node-bridge → ohpm 中心仓包
+
+> 本文头部的运行时基线与 `../ohos-node-bridge/docs/001-能力矩阵.md` 引用为当时同级 submodule 的历史口径。2026-10-22 起该库已发布为中心仓双包 `@fellow99/node-bridge@0.1.0` + `@fellow99/node-runtime@24.2.0`，本工程改为常规 ohpm 依赖（Node 仍为 v24.2.0，`worker_threads=true` 探针结论不变）；库文档见 github.com/fellow99/ohos-node-bridge。现行事实源见 `specs/TECH.md` §3 与 `specs/SPECS_CHECKLIST.md`（2026-10-22 闭合块）。

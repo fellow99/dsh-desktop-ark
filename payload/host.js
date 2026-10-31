@@ -28,7 +28,7 @@ const { createRequire } = require('node:module');
  * }} ctx
  */
 /**
- * 012-pnpm-integration / 201-dsh-market：把进程内 pnpm 的运行时前提准备好。
+ * 110-pnpm-integration / 201-dsh-market：把进程内 pnpm 的运行时前提准备好。
  *
  * 三件事，全部幂等，失败只记日志（它们不改变 Host 能否启动，只改变「能不能装插件」）：
  *   1) `DSH_PNPM_ENGINE` 指向随包物化的纯 JS pnpm 入口；
@@ -173,7 +173,7 @@ async function start(ctx) {
       sha12: version.sha12,
       shims: shims.map((s) => s.marker),
       sqlite,
-      // 109-jitless：形态事实（active / webAssembly / fetch / selfcheck）随公告对外可见。
+      // 119-jitless：形态事实（active / webAssembly / fetch / selfcheck）随公告对外可见。
       compat,
       roots: {
         payload: runRoot,

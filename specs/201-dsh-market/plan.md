@@ -1,6 +1,6 @@
 # 201-dsh-market 技术方案
 
-> HOW 见 [`docs/pnpm+dsh-market.md`](../docs/pnpm+dsh-market.md) §3.1、§3.2、§3.5；本文件做 FR→落点映射与验证口径。
+> HOW 见 [`docs/pnpm+dsh-market.md`](../../docs/pnpm+dsh-market.md) §3.1、§3.2、§3.5；本文件做 FR→落点映射与验证口径。
 
 ## 1. 落点映射
 
@@ -21,7 +21,7 @@ overlay(stage)
   profiles/ohos                      → <stage>/profiles/ohos
   collectOhosPackages()              → <stage>/node_modules/@dsh-ohos/*
   collectGitRuntime()                → @dsh-ohos/git/node_modules
-  collectMarketPNPM()                → <stage>/node_modules/dsh-market-pnpm   （012）
+  collectMarketPNPM()                → <stage>/node_modules/dsh-market-pnpm   （110）
   collectDshMarket()                 → <stage>/node_modules/dshmarket         （201）
   installRequireBuiltinShim / flock / sharp / attachment 补丁
 assertStage()

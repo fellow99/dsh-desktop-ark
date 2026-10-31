@@ -363,7 +363,7 @@ function collectGitRuntime(stage) {
   return { dir: dest, packages: countPackages(dest), bytes: stats.bytes };
 }
 
-// ── 012-pnpm-integration：随包物化的纯 JS pnpm 引擎 ─────────────────────────────────
+// ── 110-pnpm-integration：随包物化的纯 JS pnpm 引擎 ─────────────────────────────────
 //
 // 设备上既没有 pnpm 二进制，也不允许 spawn 子进程（应用域 fork 出的 node 子进程被 SIGSYS 杀死）。
 // 唯一可行路线是把 pnpm 的 CLI（纯 JS）打进载荷，由宿主在同一进程的 worker 线程里 import 它。
@@ -953,11 +953,11 @@ function overlay(stage) {
     fail(1, `204-plugin-git 运行时物化失败：${error instanceof Error ? error.message : String(error)}`);
   }
 
-  // 012-pnpm-integration：纯 JS pnpm 引擎必须随包（设备既无 pnpm 二进制，也不能 spawn 子进程）。
+  // 110-pnpm-integration：纯 JS pnpm 引擎必须随包（设备既无 pnpm 二进制，也不能 spawn 子进程）。
   try {
     collectMarketPNPM(stage);
   } catch (error) {
-    fail(1, `012-pnpm-integration 物化失败：${error instanceof Error ? error.message : String(error)}`);
+    fail(1, `110-pnpm-integration 物化失败：${error instanceof Error ? error.message : String(error)}`);
   }
 
   // 201-dsh-market：插件市场产物（host half + client half + 运行时依赖闭包）。

@@ -124,3 +124,26 @@
 | C12 | 编号对齐 | `specs/SPECS_CHECKLIST.md` 与目录树一致 |
 | C13 | 可复现 | `scripts/` 全流程重跑产物 hash 稳定 |
 | C14 | 状态标注 | `grep -rn "planned" specs/` 与实现状态一致 |
+
+---
+
+## 六、规范编号与文档分工（继承父工程宪法，2026-11-01）
+
+### C15 编号分层
+
+- **0XX = 各子工程公共、共同的需求模块**：`011-version-<VERSION>`（版本更新，原 `101-version-*`）、`012-building-workflow`（构建工作流；鸿蒙工程暂无）、`013-branding`（品牌化，原 `010-assets` 并入）。公共模块的整体规范在父工程 `specs/`，本工程只写自己的实现。
+- **1XX = 本工程基础功能模块**：编号以 `dsh-desktop-android` 为基准对齐；本工程为 `101/102/103/104/105/106/107/108/110/119`。原 `109-jitless` 改为 `119-jitless`（`109` 对齐 android 的 agent-keepalive 槽位），原 `012-pnpm-integration` 改为 `110-pnpm-integration`。
+- **2XX = 补丁/插件模块**：与兄弟工程对齐；本工程为 `201/204/205`。
+- `3XX` 预留给技能类规范；本工程暂无。
+
+### C16 文档分工
+
+- 父工程 `specs/` 关注整体规划、整体设计与各子工程共同需求。
+- 本工程 `specs/` 关注本工程具体技术实现与独立需求，不重复父工程的 overall 级内容。
+- `013-branding`（应用级品牌/图标/名称）与 `205-plugin-branding`（Web UI 品牌位）职责分离；两者名称差异必须在 spec 中显式登记。
+
+### C17 编号即契约
+
+- 目录名、`spec.md`/`plan.md` 的 `FR-*` 前缀、README 索引、`SPECS_CHECKLIST.md` 必须一致。
+- 新增/改号模块必须同时更新本文件、`README.md`、`SPECS_CHECKLIST.md` 与父工程索引。
+- 违反症状：`specs/` 有目录但 README/清单无条目，或 `FR-*` 前缀与目录号不一致。

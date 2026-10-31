@@ -2,7 +2,7 @@ import { abilityAccessCtrl, bundleManager, Permissions } from '@kit.AbilityKit';
 import { NODE_MODE } from './BuildConfig';
 
 /**
- * 109-jitless：Node 运行形态（`jit` / `compat`）。
+ * 119-jitless：Node 运行形态（`jit` / `compat`）。
  *
  * **形态只认编译期常量**（`common/BuildConfig.ets` 的 `NODE_MODE`）。这里的 ACL 探测
  * **只用于打依据串**（排障第一现场），不参与决策 —— 权限位不是 JIT 可用性的预检：
@@ -10,7 +10,7 @@ import { NODE_MODE } from './BuildConfig';
  * `docs/ACL-无ACL评估.md` §3.1。
  */
 
-/** 形态常量（与 `specs/109-jitless/spec.md` §3 术语一致） */
+/** 形态常量（与 `specs/119-jitless/spec.md` §3 术语一致） */
 export const NODE_MODE_JIT: string = 'jit';
 export const NODE_MODE_COMPAT: string = 'compat';
 

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * jitless 兼容层的**运行期回环自检**（需求 109-jitless，FR-109-017）
+ * jitless 兼容层的**运行期回环自检**（需求 119-jitless，FR-119-017）
  *
  * 只证明一件事：**这个进程现在能不能用 fetch 发请求**（GET / POST JSON / SSE 分块 / Abort / FormData）。
  * 不启动外部服务、不依赖凭据：自己在 127.0.0.1 上起一个临时 http 服务，跑完即关。

@@ -5,7 +5,7 @@
  *   node scripts/set-inspect.mjs 19229   # debug：进程内 Node 带 --inspect=127.0.0.1:19229
  *   node scripts/set-inspect.mjs 0       # release：关闭（默认）
  *
- * 为什么是脚本而不是运行期开关：`--inspect` 是进程级参数，运行期改不了（同 109-jitless 的
+ * 为什么是脚本而不是运行期开关：`--inspect` 是进程级参数，运行期改不了（同 119-jitless 的
  * `--jitless`）。源码里的常量**默认是 0**，由 `build-hap.sh` 按构建类型改写，因此
  * 「提交里永远不开调试口」，而 release 构建不依赖任何人记得手动改回。
  *

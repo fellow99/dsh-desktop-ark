@@ -5,9 +5,9 @@
 > **权威数据**：本机 SDK 的权限目录 `sdk/default/openharmony/toolchains/lib/PermissionDefinitions.json`（第一手）；
 > 设备侧副本 `/system/etc/access_token/permission_definitions.json`（实测读取，见 §5.2）。
 > **零 ACL 方案评估**：见 [`ACL-无ACL评估.md`](ACL-无ACL评估.md)。**真机调试记录**：见 [`010-真机调试记录.md`](010-真机调试记录.md)。
-> **2026-10-20 二次修订（需求 109-jitless）**：默认运行形态改为 **compat（`--jitless`，零 ACL 声明）**；
+> **2026-10-20 二次修订（需求 119-jitless）**：默认运行形态改为 **compat（`--jitless`，零 ACL 声明）**；
 > JIT ACL 只属于 `jit` 变体（`node scripts/set-node-mode.mjs jit`）。详见 §10 与
-> [`../specs/109-jitless/spec.md`](../specs/109-jitless/spec.md)。
+> [`../specs/119-jitless/spec.md`](../specs/119-jitless/spec.md)。
 >
 > **2026-10-20 修订**：按姊妹工程 `pi-desktop-ark` 最新三份文档（`001-能力复刻评估.md` REV-8/9/10/11、
 > `ACL配置.md` §5、`ACL-无ACL评估.md` §10）重新评估，并补上本工程自己的两条新实测：
@@ -333,7 +333,7 @@ ACL 只决定**内存权限**，不影响原生库与载荷：`libnode.so`（120
 `libnode_bridge.so` 随 `@fellow99/node-bridge` HAR 打包；载荷 `dsh.tar.gz` 由 `scripts/assemble-payload.mjs` 生成、
 `resfile` 随包分发，运行时由 `payload/bootstrap.js` 自解包（垫片 S1–S6）。
 
-## 10. 109-jitless：默认 compat（零 ACL 声明）
+## 10. 119-jitless：默认 compat（零 ACL 声明）
 
 | 项 | 内容 |
 |---|---|

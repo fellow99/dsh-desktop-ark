@@ -1,6 +1,6 @@
 'use strict';
 /*
- * jitless 兼容层的唯一出口（需求 109-jitless）
+ * jitless 兼容层的唯一出口（需求 119-jitless）
  *
  * 【为什么需要这一层】OHOS 不允许 W^X 的 JIT 页 ⇒ 宿主以 `--jitless` 启动 ⇒ V8 连带关掉 WASM
  * ⇒ `WebAssembly === undefined`。于是 Node 自带 undici 全线不可用：

@@ -97,7 +97,7 @@
         "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" }
       }
       // ── 受限开放权限（需 ACL，Profile 必须授权，否则装机即拒）────────────────────
-      // 109-jitless：JIT 权限只属于 `jit` 形态；标记之间的内容由 `scripts/set-node-mode.mjs`
+      // 119-jitless：JIT 权限只属于 `jit` 形态；标记之间的内容由 `scripts/set-node-mode.mjs`
       // 维护 —— 默认 compat（不声明 ⇒ 零 ACL 可安装）；切 jit 时脚本会成对加回 request/define。
       // JIT：内置 Node/V8 必需；无它且不带 --jitless 会 SIGTRAP（真机实测）。
       // [109-jitless:jit:request:begin]

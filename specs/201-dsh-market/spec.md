@@ -2,7 +2,7 @@
 
 > 模块：`201-dsh-market` · 工程 `dsh-desktop-ark` · 版本 0.2.1
 > 状态：**implemented**（本迭代）
-> 关联：设计 [`docs/pnpm+dsh-market.md`](../docs/pnpm+dsh-market.md) ｜ 契约实现 [`012-pnpm-integration`](../012-pnpm-integration/spec.md)
+> 关联：设计 [`docs/pnpm+dsh-market.md`](../../docs/pnpm+dsh-market.md) ｜ 契约实现 [`110-pnpm-integration`](../110-pnpm-integration/spec.md)
 
 ---
 
@@ -10,13 +10,13 @@
 
 ### 1.1 目的
 
-把 `dsh-market`（npm 包 `dshmarket`，固定版本 **`1.66.42`**）内置进本工程的 dsh 环境：设置页出现「插件市场」，用户可浏览目录并**安装 / 卸载**插件。安装通道由 `012-pnpm-integration` 提供（进程内 pnpm），本模块负责市场产物的物化、profile 声明与运行期接线。
+把 `dsh-market`（npm 包 `dshmarket`，固定版本 **`1.66.42`**）内置进本工程的 dsh 环境：设置页出现「插件市场」，用户可浏览目录并**安装 / 卸载**插件。安装通道由 `110-pnpm-integration` 提供（进程内 pnpm），本模块负责市场产物的物化、profile 声明与运行期接线。
 
 ### 1.2 范围
 
 **包含**：`dshmarket` 构建期物化（含运行时依赖闭包）、profile bundle 声明、启动期接线（`DSH_PNPM_ENGINE`、pnpm 配置生成）、市场行挂载顺序、文档与诊断。
 
-**不包含**：市场自身 UI/目录/备份（由市场提供）；进程内 pnpm 引擎与契约实现（属 012）；修改市场或上游源码。
+**不包含**：市场自身 UI/目录/备份（由市场提供）；进程内 pnpm 引擎与契约实现（属 110）；修改市场或上游源码。
 
 ---
 
@@ -47,10 +47,10 @@
 ### 3.3 运行期接线
 
 - **FR-201-010**：`payload/host.js` 在 `runProfile()` 之前 MUST 设置 `process.env.DSH_PNPM_ENGINE = <runRoot>/node_modules/dsh-market-pnpm/bin/pnpm.cjs`。
-- **FR-201-011**：`payload/host.js` MUST 在 `<profileDir>/pnpm-workspace.yaml` 缺失时生成该文件（内容见 012 FR-012-006），并建立 `.pnpm-store` / `.pnpm-cache` 目录。
+- **FR-201-011**：`payload/host.js` MUST 在 `<profileDir>/pnpm-workspace.yaml` 缺失时生成该文件（内容见 110 FR-110-006），并建立 `.pnpm-store` / `.pnpm-cache` 目录。
 - **FR-201-012**：`payload/bootstrap.js` MUST 设置 `DSH_OHOS_JITLESS_ENTRY`（兼容层入口绝对路径），供 worker 新 realm 安装。
 - **FR-201-013**：上述接线 MUST 幂等，且失败时 MUST NOT 阻塞 Host 启动（记日志）。
-- **FR-201-014**：市场 mount 后 MUST 通过 `ctx.get('desktopProfiles')` 命中 012 提供的契约；系统 MUST 记录一行「契约已提供 / 未提供」的日志。
+- **FR-201-014**：市场 mount 后 MUST 通过 `ctx.get('desktopProfiles')` 命中 110 提供的契约；系统 MUST 记录一行「契约已提供 / 未提供」的日志。
 
 ### 3.4 能力与限制披露
 
@@ -110,4 +110,4 @@
 
 **上游**：`dsh-market` 1.66.42（只读）；`deepseek-harness` 的 bundle/profile/client 机制（只读）。
 
-**工程内**：`012-pnpm-integration`（安装通道）、`102-payload-pipeline`（物化）、`105-upstream-adapter-bundle`（`@dsh-ohos/bundle` 插入行）。
+**工程内**：`110-pnpm-integration`（安装通道）、`102-payload-pipeline`（物化）、`105-upstream-adapter-bundle`（`@dsh-ohos/bundle` 插入行）。

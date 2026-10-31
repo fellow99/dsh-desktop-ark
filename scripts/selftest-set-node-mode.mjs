@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 109-jitless：`scripts/set-node-mode.mjs` 的脚本级测试（评审 #1/#5 要求的回归门禁）。
+ * 119-jitless：`scripts/set-node-mode.mjs` 的脚本级测试（评审 #1/#5 要求的回归门禁）。
  *
  *   node scripts/selftest-set-node-mode.mjs
  *

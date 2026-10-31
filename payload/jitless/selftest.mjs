@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * payload/jitless/selftest.mjs —— 109-jitless 的双形态自检（PC 侧）
+ * payload/jitless/selftest.mjs —— 119-jitless 的双形态自检（PC 侧）
  *
  * 用法：
  *   node --jitless payload/jitless/selftest.mjs   # 目标臂：WASM 缺失，兼容层必须接管

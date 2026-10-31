@@ -1,5 +1,5 @@
 /**
- * 109-jitless：**编译期**运行形态（本工程唯一的形态开关）。
+ * 119-jitless：**编译期**运行形态（本工程唯一的形态开关）。
  *
  * 背景：`kernel.ALLOW_WRITABLE_CODE_MEMORY` 是受限权限（需 ACL）。无 ACL 的设备上按 JIT 启动
  * 会在 V8 申请可执行页时 **SIGTRAP**（应用级失败，进程内 Node 不能重启）；有 ACL 时 `--jitless`

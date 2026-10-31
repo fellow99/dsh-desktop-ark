@@ -325,7 +325,7 @@ export class HostCapabilities {
         paths,
         userDirs: HostCapabilities.userDirs(),
         capabilities: HostCapabilities.capabilities(),
-        // 109-jitless：如实上报本次进程形态（compat ⇒ true），不得写死
+        // 119-jitless：如实上报本次进程形态（compat ⇒ true），不得写死
         jitless: resolveNodeMode().jitless()
       };
       return JSON.stringify(payload);

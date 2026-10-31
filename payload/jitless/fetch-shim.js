@@ -1,6 +1,6 @@
 /*
  * 来源：pi-desktop-ark/payload/jitless/fetch-shim.js（需求 108-jitless，已量产）
- * 本工程（109-jitless）复用该实现；仅保留「纯 JS fetch」能力面，未做行为改动。
+ * 本工程（119-jitless）复用该实现；仅保留「纯 JS fetch」能力面，未做行为改动。
  * 归属与维护：两工程同源；改动请同时回写两侧，避免分叉。
  */
 

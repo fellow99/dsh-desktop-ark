@@ -75,8 +75,8 @@ hdc app install -r entry/build/default/outputs/default/entry-default-signed.hap
 | [Capability inventory 0.2.1](docs/鸿蒙环境能力清单-0.2.1.md) | What works, what does not, and how this compares to the Electron edition |
 | [Engineering plan](docs/000-工程规划.md) | Why this architecture, what was rejected, and the shim whitelist |
 | [On-device notes](docs/010-真机调试记录.md) | What broke on the device and how it was diagnosed |
-| [JIT and ACL](docs/ACL配置.md) · [JIT-less decision](docs/109-jitless-方案决策.md) | The two runtime forms and what each costs |
-| [Specifications](specs/README.md) | 11 spec modules (101–109, 204, 205) with plans and gates |
+| [JIT and ACL](docs/ACL配置.md) · [JIT-less decision](docs/119-jitless-方案决策.md) | The two runtime forms and what each costs |
+| [Specifications](specs/README.md) | 14 spec modules (013, 101–108, 110, 119, 201, 204, 205) with plans and gates |
 
 ## Related
 

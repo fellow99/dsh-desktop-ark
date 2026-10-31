@@ -3,7 +3,7 @@
 #
 # 用法：
 #   bash scripts/build-hap.sh [--debug|--release] [--node-mode jit|compat]
-#   109-jitless：--node-mode 会先调用 scripts/set-node-mode.mjs（同步 BuildConfig 常量与
+#   119-jitless：--node-mode 会先调用 scripts/set-node-mode.mjs（同步 BuildConfig 常量与
 #   module.json5 的 JIT 声明面），再构建；不传则沿用当前源码里的形态。
 # 环境：
 #   OHOS_CLT        DevEco Command Line Tools 根（默认 D:/oh-workspace/command-line-tools）
@@ -26,7 +26,7 @@ done
 export DEVECO_SDK_HOME="${DEVECO_SDK_HOME:-$CLT/sdk}"
 export PATH="$CLT/tool/node:$PATH"
 
-# 109-jitless：形态切换放到 PATH 就绪之后，保证 node 可用
+# 119-jitless：形态切换放到 PATH 就绪之后，保证 node 可用
 if [ -n "$NODE_MODE" ]; then
   node "$ROOT/scripts/set-node-mode.mjs" "$NODE_MODE"
 fi

@@ -5,7 +5,7 @@ feature-detects — `desktopProfiles` and `desktopPnpm` — so marketplace insta
 the packaged pure-JS pnpm **inside a worker thread of this process** instead of spawning
 node/pnpm children (spawned children are killed with SIGSYS on this platform).
 
-Specs: [`specs/012-pnpm-integration`](../../specs/012-pnpm-integration/spec.md),
+Specs: [`specs/110-pnpm-integration`](../../specs/110-pnpm-integration/spec.md),
 [`specs/201-dsh-market`](../../specs/201-dsh-market/spec.md). Design:
 [`docs/pnpm+dsh-market.md`](../../docs/pnpm+dsh-market.md).
 

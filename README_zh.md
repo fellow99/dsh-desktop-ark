@@ -75,8 +75,8 @@ hdc app install -r entry/build/default/outputs/default/entry-default-signed.hap
 | [能力清单 0.2.1](docs/鸿蒙环境能力清单-0.2.1.md) | 能做什么、不能做什么，与 Electron 版如何对标 |
 | [工程规划](docs/000-工程规划.md) | 为什么是这个架构、否决了什么、垫片白名单 |
 | [真机调试记录](docs/010-真机调试记录.md) | 真机上踩了什么坑、怎么定位的 |
-| [JIT 与 ACL](docs/ACL配置.md) · [无 JIT 决策](docs/109-jitless-方案决策.md) | 两种运行时形态各自的代价 |
-| [规格文档](specs/README.md) | 11 个规格模块（101–109、204、205）与门禁 |
+| [JIT 与 ACL](docs/ACL配置.md) · [无 JIT 决策](docs/119-jitless-方案决策.md) | 两种运行时形态各自的代价 |
+| [规格文档](specs/README.md) | 14 个规格模块（013、101–108、110、119、201、204、205）与门禁 |
 
 ## 相关工程
 

@@ -42,7 +42,7 @@ try {
     fail(`@dsh-ohos/git 缺少物化的 isomorphic-git 闭包：${gitNested}`
       + '（先跑 node scripts/assemble-payload.mjs --deploy --apply 或 --from <树> --apply）');
   }
-  // 201-dsh-market / 012-pnpm-integration：市场或 pnpm 引擎缺一半时，运行期只会「静默没有市场 /
+  // 201-dsh-market / 110-pnpm-integration：市场或 pnpm 引擎缺一半时，运行期只会「静默没有市场 /
   // 装不了插件」——归档前必须拦住，别把半成品发出去。
   const marketEntry = join(STAGE, 'node_modules/dshmarket/lib/index.js');
   if (existsSync(join(STAGE, 'node_modules/dshmarket/package.json')) && !existsSync(marketEntry)) {

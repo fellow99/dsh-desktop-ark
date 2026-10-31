@@ -91,7 +91,7 @@ export class DshRuntime {
     this.launched = true;
     const runtime: NodeRuntime = NodeRuntime.getInstance();
     const launchedAt: number = Date.now();
-    // 109-jitless：形态是编译期常量；这里只解析一次并打事实（不含任何运行期切换）。
+    // 119-jitless：形态是编译期常量；这里只解析一次并打事实（不含任何运行期切换）。
     const mode: NodeModeDecision = resolveNodeMode();
     this.log('node mode: ' + mode.describe());
 
@@ -124,7 +124,7 @@ export class DshRuntime {
         // 设备外需 `hdc fport` 才能连；不改变任何业务行为（spec FR-204-050/051）。
         flags: '--no-verify-heap --expose-internals'
           + (INSPECT_PORT > 0 ? ` --inspect=127.0.0.1:${INSPECT_PORT}` : ''),
-        // 109-jitless：compat 形态由库在脚本路径前插入 --jitless（库契约 §2.3）；
+        // 119-jitless：compat 形态由库在脚本路径前插入 --jitless（库契约 §2.3）；
         // jit 形态保持现状（不带 --jitless）。
         jitless: mode.jitless(),
         env: {

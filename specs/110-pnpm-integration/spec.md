@@ -1,10 +1,10 @@
-# 012-pnpm-integration 纯 JS pnpm 集成 功能规格
+# 110-pnpm-integration 纯 JS pnpm 集成 功能规格
 
-> 模块：`012-pnpm-integration` · 工程 `dsh-desktop-ark` · 版本 0.2.1
+> 模块：`110-pnpm-integration` · 工程 `dsh-desktop-ark` · 版本 0.2.1
 > 状态：**implemented**（本迭代）
 > 关联文档：
-> - [`docs/pnpm+dsh-market.md`](../docs/pnpm+dsh-market.md) —— 本模块的设计与取舍（P1–P11、§3.1–§3.6）
-> - [`../dsh-desktop-hos/docs/pnpm对接问题排查.md`](../../dsh-desktop-hos/docs/pnpm对接问题排查.md) —— 同源真机故障矩阵（平台根因）
+> - [`docs/pnpm+dsh-market.md`](../../docs/pnpm+dsh-market.md) —— 本模块的设计与取舍（P1–P11、§3.1–§3.6）
+> - [`../dsh-desktop-hos/docs/pnpm对接问题排查.md`](../../../dsh-desktop-hos/docs/pnpm对接问题排查.md) —— 同源真机故障矩阵（平台根因）
 > - [`201-dsh-market/spec.md`](../201-dsh-market/spec.md) —— 消费本模块的市场集成
 
 ---
@@ -49,52 +49,52 @@
 
 ### 3.1 构建期物化与版本固定
 
-- **FR-012-001**：收集阶段 MUST 把 `pnpm@10.34.6` 整包物化到 `<stage>/node_modules/dsh-market-pnpm/`，入口为 `bin/pnpm.cjs`。
-- **FR-012-002**：版本 MUST 由单一常量（`PNPM_VERSION`）固定；构建期 MUST 断言产物 `package.json.version` 与常量一致。
-- **FR-012-003**：物化 MUST 幂等（目标已存在则只做断言，不重复下载）；引擎来源不可用时 MUST 硬失败。
-- **FR-012-004**：断言 MUST 校验入口文件存在且非空；损坏产物不得被当作就绪。
-- **FR-012-005**：物化 MUST 剪除非目标平台产物（`reflink.{darwin,win32}*`、`vendor/*.exe`、`CHANGELOG.md`）。
+- **FR-110-001**：收集阶段 MUST 把 `pnpm@10.34.6` 整包物化到 `<stage>/node_modules/dsh-market-pnpm/`，入口为 `bin/pnpm.cjs`。
+- **FR-110-002**：版本 MUST 由单一常量（`PNPM_VERSION`）固定；构建期 MUST 断言产物 `package.json.version` 与常量一致。
+- **FR-110-003**：物化 MUST 幂等（目标已存在则只做断言，不重复下载）；引擎来源不可用时 MUST 硬失败。
+- **FR-110-004**：断言 MUST 校验入口文件存在且非空；损坏产物不得被当作就绪。
+- **FR-110-005**：物化 MUST 剪除非目标平台产物（`reflink.{darwin,win32}*`、`vendor/*.exe`、`CHANGELOG.md`）。
 
 ### 3.2 profile pnpm 配置
 
-- **FR-012-006**：运行期 MUST 在 `<profileDir>/pnpm-workspace.yaml` 缺失时写入配置，至少含 `nodeLinker: hoisted`、`packageImportMethod: copy`、`autoInstallPeers: false`、`ignoreScripts: true`、`minimumReleaseAge: 0`、以及**绝对路径** `storeDir`。
-- **FR-012-007**：`storeDir` MUST 落在应用可写沙箱内（`<profileDir>/.pnpm-store`），MUST NOT 依赖默认 `~/.pnpm-store`（设备 `cwd` 为 `/`）。
-- **FR-012-008**：写入 MUST 幂等，且 MUST NOT 覆盖已存在文件（用户/市场可能已改写）。
+- **FR-110-006**：运行期 MUST 在 `<profileDir>/pnpm-workspace.yaml` 缺失时写入配置，至少含 `nodeLinker: hoisted`、`packageImportMethod: copy`、`autoInstallPeers: false`、`ignoreScripts: true`、`minimumReleaseAge: 0`、以及**绝对路径** `storeDir`。
+- **FR-110-007**：`storeDir` MUST 落在应用可写沙箱内（`<profileDir>/.pnpm-store`），MUST NOT 依赖默认 `~/.pnpm-store`（设备 `cwd` 为 `/`）。
+- **FR-110-008**：写入 MUST 幂等，且 MUST NOT 覆盖已存在文件（用户/市场可能已改写）。
 
 ### 3.3 进程内调用
 
-- **FR-012-010**：系统 MUST 在**进程内 worker 线程**执行 pnpm，MUST NOT spawn 任何 node/pnpm 子进程。
-- **FR-012-011**：worker MUST 在新 realm 内按需安装 jitless 兼容层（`DSH_OHOS_JITLESS_ENTRY`，仅当 `WebAssembly === undefined`），使 `node:http` 的 undici 惰性 getter 被封印。
-- **FR-012-012**：worker MUST 合成自己的 `process.argv`（`[execPath, entry, ...args, '--dir', profileDir]`），MUST NOT 改动主线程 argv。
-- **FR-012-013**：worker MUST 把 `process.execPath` 换成 no-op setter（pnpm 启动会赋值）。
-- **FR-012-014**：worker MUST 把 `fs.symlink` / `fs.symlinkSync` 在 `EACCES/EPERM/ENOSYS/EINVAL` 时回退为复制（`.bin` 落地为真实文件）。
-- **FR-012-015**：worker MUST 设置 `CI=true`（pnpm 10 无 TTY 时会停在交互提示）与 `XDG_*` 缓存目录到 `<profileDir>/.pnpm-cache`。
-- **FR-012-016**：完成信号 MUST 来自 worker 退出码；MUST NOT 用「`import(entry)` 返回」当完成（pnpm CLI 是 fire-and-forget）。
-- **FR-012-017**：worker 无法启动时 MUST 立即以 127 失败并记录原因；MUST NOT 退化为同线程执行（无可判定完成条件）。
-- **FR-012-018**：`cancel()` 与 `AbortSignal` MUST 终止 worker，并使 `done` 以非零结束、stderr 说明「已取消」。
-- **FR-012-019**：同一时刻只允许一个操作；已有操作在跑时 MUST **同步抛错**，错误消息含 `another desktop pnpm operation is already running`（市场据此判定 busy）。
+- **FR-110-010**：系统 MUST 在**进程内 worker 线程**执行 pnpm，MUST NOT spawn 任何 node/pnpm 子进程。
+- **FR-110-011**：worker MUST 在新 realm 内按需安装 jitless 兼容层（`DSH_OHOS_JITLESS_ENTRY`，仅当 `WebAssembly === undefined`），使 `node:http` 的 undici 惰性 getter 被封印。
+- **FR-110-012**：worker MUST 合成自己的 `process.argv`（`[execPath, entry, ...args, '--dir', profileDir]`），MUST NOT 改动主线程 argv。
+- **FR-110-013**：worker MUST 把 `process.execPath` 换成 no-op setter（pnpm 启动会赋值）。
+- **FR-110-014**：worker MUST 把 `fs.symlink` / `fs.symlinkSync` 在 `EACCES/EPERM/ENOSYS/EINVAL` 时回退为复制（`.bin` 落地为真实文件）。
+- **FR-110-015**：worker MUST 设置 `CI=true`（pnpm 10 无 TTY 时会停在交互提示）与 `XDG_*` 缓存目录到 `<profileDir>/.pnpm-cache`。
+- **FR-110-016**：完成信号 MUST 来自 worker 退出码；MUST NOT 用「`import(entry)` 返回」当完成（pnpm CLI 是 fire-and-forget）。
+- **FR-110-017**：worker 无法启动时 MUST 立即以 127 失败并记录原因；MUST NOT 退化为同线程执行（无可判定完成条件）。
+- **FR-110-018**：`cancel()` 与 `AbortSignal` MUST 终止 worker，并使 `done` 以非零结束、stderr 说明「已取消」。
+- **FR-110-019**：同一时刻只允许一个操作；已有操作在跑时 MUST **同步抛错**，错误消息含 `another desktop pnpm operation is already running`（市场据此判定 busy）。
 
 ### 3.4 市场契约对接（desktopProfiles / desktopPnpm）
 
-- **FR-012-020**：系统 MUST 在市场 bundle mount **之前** `ctx.provide('desktopProfiles', { current: { name, dir } })`，`dir` **只**取自 `profileContext.dir`（绝对路径且存在）。
-- **FR-012-021**：系统 MUST `ctx.provide('desktopPnpm', { runPlugin })`，`runPlugin(args, invokingDir, signal)` 返回 `{ stdout, stderr, done, cancel }`。
-- **FR-012-022**：`dir` 不可用时 MUST NOT provide，并 MUST 打印一行可归因的错误日志（不静默）。
-- **FR-012-023**：`args` MUST 原样透传（市场会送 `add -w <target>`、`remove <name>`、`install --no-frozen-lockfile`、`update` 及 `--reporter=ndjson` / `--config.*` / `--force`）；宿主只追加 `--dir <profileDir>`，MUST NOT 采信 `invokingDir`。
-- **FR-012-024**：引擎未就绪时 `runPlugin` MUST 返回 127 句柄，stderr 点名 `DSH_PNPM_ENGINE` 期望路径。
+- **FR-110-020**：系统 MUST 在市场 bundle mount **之前** `ctx.provide('desktopProfiles', { current: { name, dir } })`，`dir` **只**取自 `profileContext.dir`（绝对路径且存在）。
+- **FR-110-021**：系统 MUST `ctx.provide('desktopPnpm', { runPlugin })`，`runPlugin(args, invokingDir, signal)` 返回 `{ stdout, stderr, done, cancel }`。
+- **FR-110-022**：`dir` 不可用时 MUST NOT provide，并 MUST 打印一行可归因的错误日志（不静默）。
+- **FR-110-023**：`args` MUST 原样透传（市场会送 `add -w <target>`、`remove <name>`、`install --no-frozen-lockfile`、`update` 及 `--reporter=ndjson` / `--config.*` / `--force`）；宿主只追加 `--dir <profileDir>`，MUST NOT 采信 `invokingDir`。
+- **FR-110-024**：引擎未就绪时 `runPlugin` MUST 返回 127 句柄，stderr 点名 `DSH_PNPM_ENGINE` 期望路径。
 
 ### 3.5 失败可见性与诊断
 
-- **FR-012-030**：关键事件与失败 MUST 以 `[dsh-ohos]` 前缀写入 `app.log`，禁止静默降级。
-- **FR-012-031**：系统 MUST 在启动时做一次 worker 能力探针（2 s 预算），结果进日志与诊断对象。
-- **FR-012-032**：系统 MUST 暴露 `globalThis.__dshOhosMarket = { profile, profileDir, engineEntry, engineOk, worker, workerError, lastRun }` 供 `--inspect` 读回。
+- **FR-110-030**：关键事件与失败 MUST 以 `[dsh-ohos]` 前缀写入 `app.log`，禁止静默降级。
+- **FR-110-031**：系统 MUST 在启动时做一次 worker 能力探针（2 s 预算），结果进日志与诊断对象。
+- **FR-110-032**：系统 MUST 暴露 `globalThis.__dshOhosMarket = { profile, profileDir, engineEntry, engineOk, worker, workerError, lastRun }` 供 `--inspect` 读回。
 
 ### 3.6 幂等与安全
 
-- **FR-012-040**：运行期接线 MUST 幂等；除构建期断言外，运行期失败 MUST NOT 阻塞 Host 启动。
-- **FR-012-041**：本模块 MUST NOT 扩大权限面（零新增受限权限 / ACL）。
-- **FR-012-042**：安装 MUST 关闭 lifecycle 脚本（`ignoreScripts`），MUST NOT 执行插件作者代码。
-- **FR-012-044**：`desktopProfiles` MUST 同时发布 `pluginActivation`，其 `activate()` MUST 先对账 `dsh.profile.bundles`（追加已装且声明 `dsh.bundle` 的依赖；移除既不在 profile 也不能从安装锚点解析的行），再返回 `{ ok:false, error }` 声明本宿主只支持重启生效。
-- **FR-012-043**：构建期 MUST 把 `dshmarket/node_modules/undici` 替换为纯 JS 替身（`payload/shims/undici`，复用 109 的 `fetch-shim`）：市场直接 `import { fetch } from 'undici'`，`--jitless` 下原包每次请求都抛 `WebAssembly is not defined`。断言 MUST 校验替身标记（`dshOhosShim: pure-js-undici`）。
+- **FR-110-040**：运行期接线 MUST 幂等；除构建期断言外，运行期失败 MUST NOT 阻塞 Host 启动。
+- **FR-110-041**：本模块 MUST NOT 扩大权限面（零新增受限权限 / ACL）。
+- **FR-110-042**：安装 MUST 关闭 lifecycle 脚本（`ignoreScripts`），MUST NOT 执行插件作者代码。
+- **FR-110-044**：`desktopProfiles` MUST 同时发布 `pluginActivation`，其 `activate()` MUST 先对账 `dsh.profile.bundles`（追加已装且声明 `dsh.bundle` 的依赖；移除既不在 profile 也不能从安装锚点解析的行），再返回 `{ ok:false, error }` 声明本宿主只支持重启生效。
+- **FR-110-043**：构建期 MUST 把 `dshmarket/node_modules/undici` 替换为纯 JS 替身（`payload/shims/undici`，复用 119 的 `fetch-shim`）：市场直接 `import { fetch } from 'undici'`，`--jitless` 下原包每次请求都抛 `WebAssembly is not defined`。断言 MUST 校验替身标记（`dshOhosShim: pure-js-undici`）。
 
 ---
 
@@ -147,4 +147,4 @@
 
 **上游**：`pnpm@10.34.6`（纯 JS CLI）；`deepseek-harness` 的 `profileContext` 服务与 profile 解析契约（只读，不改）。
 
-**工程内**：`102-payload-pipeline`（物化落点）、`109-jitless`（兼容层入口）、`201-dsh-market`（消费方）。
+**工程内**：`102-payload-pipeline`（物化落点）、`119-jitless`（兼容层入口）、`201-dsh-market`（消费方）。

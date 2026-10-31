@@ -4,7 +4,7 @@ DSH Desktop（Ark 版）的插件市场运行时：向 `dsh-market` 提供 `desk
 两个服务，让市场的插件安装/卸载在**本进程的 worker 线程**里跑随包物化的纯 JS pnpm，
 不 spawn 任何 node/pnpm 子进程（应用域 spawn 会被 SIGSYS 杀死）。
 
-对应规格：[`specs/012-pnpm-integration`](../../specs/012-pnpm-integration/spec.md)、
+对应规格：[`specs/110-pnpm-integration`](../../specs/110-pnpm-integration/spec.md)、
 [`specs/201-dsh-market`](../../specs/201-dsh-market/spec.md)；设计：
 [`docs/pnpm+dsh-market.md`](../../docs/pnpm+dsh-market.md)。
 
