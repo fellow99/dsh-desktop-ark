@@ -22,3 +22,5 @@ signing.*.local.json
 .idea/
 *.log
 /logs
+# CodeGraph 语义代码地图（本地索引，不入库）
+.codegraph
