@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/release-0.2.1-4D6BFE" alt="版本">
-  <img src="https://img.shields.io/badge/dsh-dsh--v0.2.1--rc.2-7C5CFF" alt="dsh 版本">
+  <img src="https://img.shields.io/badge/dsh-dsh--v0.2.1--rc.5-7C5CFF" alt="dsh 版本">
   <img src="https://img.shields.io/badge/HarmonyOS-API%2024-0A59F7" alt="HarmonyOS API 24">
   <img src="https://img.shields.io/badge/Node-v24.2.0-5FA04E" alt="Node 24.2.0">
   <img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="MIT">
