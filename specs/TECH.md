@@ -16,7 +16,7 @@
 
 | NAPI 引导件 | `libnode_bridge.so`（随 `@fellow99/node-bridge` 包） | 0.1.0（ohpm） | `dlopen` + `node::Start` | 七项 ELF 门禁在上游发布流水线执行，SHA-256 锁定 |
 
-| 上游产品 | `deepseek-harness` | tag **`dsh-v0.2.1-rc.2`**（`@deepseek-ai/dsh` 0.2.1-rc.2） | Host、Web 前端、profile/bundle 机制 | 唯一上游；零源码补丁为目标 |
+| 上游产品 | `deepseek-harness` | tag **`dsh-v0.2.1-rc.5`**（`@deepseek-ai/dsh` 0.2.1-rc.5） | Host、Web 前端、profile/bundle 机制 | 唯一上游；零源码补丁为目标 |
 | 构建系统 | hvigor（CLT） | 6.1.1.280 | HAP 构建 | 与 DevEco 同一套 |
 | SDK | HarmonyOS SDK | API **24**（6.1.1.125） | 编译/打包 | `compatibleSdkVersion 5.0.5(17)`、`targetSdkVersion 6.1.1(24)` |
 | 包管理（HarmonyOS） | ohpm | 随 CLT | 中心仓依赖 | 消费 `@fellow99/node-bridge` + `@fellow99/node-runtime`（OpenHarmony 三方库中心仓） |
@@ -74,7 +74,7 @@
 
 ## 5. 版本策略
 
-- 上游 tag 与运行时版本**成对锁定**：`dsh-v0.2.1-rc.2` + `Node v24.2.0`。
+- 上游 tag 与运行时版本**成对锁定**：`dsh-v0.2.1-rc.5` + `Node v24.2.0`。
 - 升级 = 改两处版本号 + 重跑产物管线 + 全量回归（`scripts/verify-upstream.mjs` 做契约断言）。
 - 应用版本：`versionCode = major*10000 + minor*100 + patch`；两条发行线（`standard` / `jitless`）各自单调递增。
 - 模块 `oh-package.json5` 的 `version` 固定 `1.0.0`（SemVer 校验要求 ≥1.0.0，与应用对外版本无关）。

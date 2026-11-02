@@ -5,8 +5,8 @@
 > 状态：**implemented**（宿主 Node 上跑通端到端断言 + 负向对照；真机未验，见 §7）
 > 来源：
 > - 需求原文（需求方提供）：上游的 Logo 与标题必须按本产品身份替换，且**不得引入上游源码补丁**
-> - `../dsh-desktop-hos/patches/dsh-v0.2.1-rc.2/dsh-rebrand.patch`（Electron 版做法：改上游 locale 与组件源码，**本工程不复用**）
-> - `../dsh-desktop-hos/patches/dsh-v0.2.1-rc.2/dsh-disable-welcome-notice.patch`（Electron 版做法：整块摘除首次引导 UI，**本工程不复用**）
+> - `../dsh-desktop-hos/patches/dsh-v0.2.1-rc.5/dsh-rebrand.patch`（Electron 版做法：改上游 locale 与组件源码，**本工程不复用**）
+> - `../dsh-desktop-hos/patches/dsh-v0.2.1-rc.5/dsh-disable-welcome-notice.patch`（Electron 版做法：整块摘除首次引导 UI，**本工程不复用**）
 > - 本工程：`specs/constitution.md`（C1 上游零补丁、C2 不假装）、`specs/105-upstream-adapter-bundle/`（bundle 覆盖层范式）、`specs/108-compliance-release/`（标识与合规边界）
 > 需求语言遵循 RFC 2119（MUST / SHOULD / MAY）。**本文件只写 WHAT（可验证的行为），实现细节在 `plan.md`。**
 
