@@ -33,18 +33,17 @@ export const HERO_ATTR = 'data-dsh-ohos-hero'
 /**
  * hero 品牌位的替换规则。
  *
- * 结构（上游 `ui-conversation` 的 EmptyHero，实测 DOM）：
- *   `div.headline > span.fishHitbox > div[data-slot="conversation.hero.brand.mark"] > span[data-dsh-ohos-hero]`
+ * 结构（上游 `ui-conversation` 的 EmptyHero，rc.5 实测 DOM）：
+ *   `div.headline > div[data-slot="conversation.hero.brand.mark"]（display:contents）> span[data-dsh-ohos-hero]`
  *   `div.headline > span.titleGroup`（标语 + Preview 徽标）
- * 槽位出口元素（`data-slot`）是 `display: contents`，所以品牌位在它里面任意层级；
- * `:has()` 先定位到 `.headline`，再隐藏**不含品牌位**的直接 span —— 即 titleGroup。
- * 用 `:not(:has(...))` 而不是 `:last-child`：侧栏 logo 行同样是 `div > span > …` 结构，
- * 品牌位锚点（hero 独占属性）保证这条规则只会命中 hero 那一行，且永不选中品牌位自己。
+ * rc.5 把品牌槽位从「`span.fishHitbox` 包裹」改成「`div[data-slot]` 直挂 headline」
+ * （`display: contents`），所以旧选择器 `:has(> span > [data-slot] …)` 不再命中；
+ * 现同时接受 直挂 div / div 内嵌 / span 包裹 三种形态，兼容新旧两种渲染。
  * 上游若改动 hero 结构，规则会**不匹配**（标语恢复原样），不会误伤别的元素 ——
  * 由 `specs/205-plugin-branding` 的回归用例兜住。
  */
 export const HERO_CSS = `/* ${BRAND_MARKER}: 上游 hero 标语/Preview 徽标由本产品品牌位接管 */
-div:has(> span > [data-slot="conversation.hero.brand.mark"] [${HERO_ATTR}]) > span:not(:has([${HERO_ATTR}])){display:none !important}
+div:has(> [data-slot="conversation.hero.brand.mark"][${HERO_ATTR}], > [data-slot="conversation.hero.brand.mark"] [${HERO_ATTR}], > span > [data-slot="conversation.hero.brand.mark"] [${HERO_ATTR}]) > span:not(:has([${HERO_ATTR}])){display:none !important}
 `
 
 /** 首个 `<title>…</title>`（容忍上游改写模板的缩进与内容）。 */
