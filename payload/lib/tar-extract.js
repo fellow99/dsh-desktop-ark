@@ -67,6 +67,10 @@ function untarGzip(archive, destDir, log) {
 
   let offset = 0;
   let files = 0;
+  // GNU tar 长名扩展（typeflag 'L'，头部名为 ././@LongLink）：其载荷是紧随其后条目的完整路径。
+  // 不处理它就只能靠 100 字节 name 字段（被截断）→ 长路径条目错位/失败；
+  // 'K' 是长链接目标，本实现不解链接，丢弃载荷即可。
+  let pendingLongName = null;
   while (offset + BLOCK <= buffer.length) {
     const block = buffer.subarray(offset, offset + BLOCK);
     if (block.every((byte) => byte === 0)) {
@@ -77,6 +81,22 @@ function untarGzip(archive, destDir, log) {
 
     if (header.magic !== 'ustar' && header.magic !== 'ustar ') {
       throw new Error(`不是 ustar 归档（magic=${JSON.stringify(header.magic)}）`);
+    }
+    const paddedOf = (size) => Math.ceil(size / BLOCK) * BLOCK;
+    if (header.type === 'L' || header.type === 'K') {
+      const body = buffer.subarray(offset, offset + header.size);
+      if (body.length !== header.size) {
+        throw new Error(`归档截断（长名扩展）：期望 ${header.size}，实际 ${body.length}`);
+      }
+      if (header.type === 'L') {
+        pendingLongName = body.toString('utf8').replace(/\0[\s\S]*$/, '').replace(/\n$/, '');
+      }
+      offset += paddedOf(header.size);
+      continue;
+    }
+    if (pendingLongName !== null) {
+      header.name = pendingLongName.replace(/^\.\//, '');
+      pendingLongName = null;
     }
     if (header.type !== '0' && header.type !== '\0' && header.type !== '5') {
       throw new Error(`拒绝条目类型 ${header.type}：${header.name}`);
