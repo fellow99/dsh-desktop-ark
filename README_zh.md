@@ -66,7 +66,23 @@ bash scripts/build-hap.sh           # ② ohpm install → 载荷归档 + HAP �
 hdc app install -r entry/build/default/outputs/default/entry-default-signed.hap
 ```
 
-`OHOS_CLT` 可覆盖 Command Line Tools 根目录；`node scripts/verify-upstream.mjs` 校验上游锁定未被破坏（tag、工作树干净、patch id、品牌与引导门禁）。
+`OHOS_CLT` 可覆盖工具链根目录，**两种布局都支持**：Command Line Tools（`<root>/bin` + `<root>/sdk` + `<root>/tool/node`），或 DevEco Studio 安装根（`<root>/tools/{hvigor,ohpm,node}/bin` + `<root>/sdk` + `<root>/jbr`）。`node scripts/verify-upstream.mjs` 校验上游锁定未被破坏（tag、工作树干净、patch id、品牌与引导门禁）。
+
+### 签名（遇到「签名失败」先看这里）
+
+`assembleHap` 的 `hap-sign-tool.jar` 用的是 **`PATH` 里第一个 `java`**（hvigor 任务不钉 JDK）。机器上若另装了 JDK（sdkman/Temurin、Adoptium…），签名会报一个与 HAP 完全无关的误导性错误：
+
+```
+Failed :entry:default@SignHap...
+ERROR: 11012006 File IO failed
+Error Message: Invalid CEN header (invalid zip64 extra data field size)
+```
+
+所以 `scripts/build-hap.sh` 会自带把 DevEco 的 **JBR** 前置到 `PATH`（并用 `cygpath -u` 转成 POSIX 形式，否则 MSYS bash 找不到 `java.exe`），同时导出 `JAVA_HOME`。若你自己直接调 `hvigorw`，也要同样处理。
+
+签名材料**不入库**：要么让 DevEco Studio 生成签名（它会把 `app.signingConfigs` 写进 `build-profile.json5` —— **不要提交该文件**，构建完回退），要么用 `signing.debug.local.json` / `signing.release.local.json`（gitignored）提供**明文**口令（`certpath`、`storeFile`、`profile`、`keyAlias`、`keyPassword`、`storePassword`、`signAlg`）—— DevEco 生成的加密口令串只在 `build-profile.json5` 内联路径下能解。
+
+`bash scripts/build-hap.sh --debug` 产出 `entry-default-signed.hap`，可在调试证书匹配的设备上 `hdc app install -r` 直装；`--release` 需 release profile，且只能经 AppGallery 分发。
 
 ## 文档
 

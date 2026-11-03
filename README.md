@@ -66,7 +66,23 @@ bash scripts/build-hap.sh           # ② ohpm install → payload archive + HAP
 hdc app install -r entry/build/default/outputs/default/entry-default-signed.hap
 ```
 
-`OHOS_CLT` overrides the Command Line Tools root; `node scripts/verify-upstream.mjs` proves the upstream pin is intact (tag, clean tree, patch ids, brand/onboarding gates).
+`OHOS_CLT` overrides the toolchain root and accepts **either** layout: Command Line Tools (`<root>/bin` + `<root>/sdk` + `<root>/tool/node`) or a DevEco Studio install (`<root>/tools/{hvigor,ohpm,node}/bin` + `<root>/sdk` + `<root>/jbr`). `node scripts/verify-upstream.mjs` proves the upstream pin is intact (tag, clean tree, patch ids, brand/onboarding gates).
+
+### Signing (read this before wondering why a signed HAP fails)
+
+`assembleHap` runs `hap-sign-tool.jar` via **whatever `java` is first on `PATH`** — the hvigor task does not pin a JDK. If the machine also has another JDK (sdkman/Temurin, Adoptium, …), signing dies with a misleading error that has nothing to do with the HAP:
+
+```
+Failed :entry:default@SignHap...
+ERROR: 11012006 File IO failed
+Error Message: Invalid CEN header (invalid zip64 extra data field size)
+```
+
+`scripts/build-hap.sh` therefore prepends DevEco's bundled **JBR** (with `cygpath -u`, otherwise MSYS bash cannot resolve `java.exe`) and exports `JAVA_HOME`. If you invoke `hvigorw` yourself, do the same or you will hit that error.
+
+Signing material is **never committed**. Either let DevEco Studio generate it (it writes `app.signingConfigs` into `build-profile.json5` — do not commit that file; revert it after building), or provide `signing.debug.local.json` / `signing.release.local.json` (gitignored) with **plaintext** passwords (`certpath`, `storeFile`, `profile`, `keyAlias`, `keyPassword`, `storePassword`, `signAlg`) — DevEco's encrypted password strings only decrypt on the inline `build-profile.json5` path.
+
+Run `bash scripts/build-hap.sh --debug` to get `entry-default-signed.hap`, which installs on a device whose debug profile matches (`hdc app install -r …`). `--release` needs a release profile and can only ship through AppGallery.
 
 ## Docs
 
