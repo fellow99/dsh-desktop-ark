@@ -8,17 +8,17 @@
 
 ## 一、项目背景（必读）
 
-**DSH Desktop · HarmonyOS Edition** — 在鸿蒙 2in1 / 平板（API 24）上用**系统 ArkWeb** 渲染官方未改动的 dsh Web UI，dsh Host 跑在**进程内真实 Node.js 运行时**（libnode v24.2.0）。**无 Electron、无捆绑 Chromium、无 ArkUI 重写。**
+**DSH Desktop · HarmonyOS Edition** — 在鸿蒙 2in1 / 平板（API 24）上用**系统 ArkWeb** 渲染官方未改动的 dsh Web UI，dsh Host 跑在**进程内真实 Node.js 运行时**（libnode v26.13.0）。**无 Electron、无捆绑 Chromium、无 ArkUI 重写。**
 
-- **版本**：0.2.1（`versionCode` 201）｜ 上游基线 `dsh-v0.2.1-rc.5` ｜ Node **v24.2.0** ｜ 无 JIT（`compat` 默认，侧载无需受限权限）
-- **运行时来源**：ohpm 中央仓 `@fellow99/node-bridge`（ArkTS 组件库，NAPI bootstrap + dlopen + node::Start）+ `@fellow99/node-runtime@24.2.0`（`libnode.so`，SHA-256 锁定 by `runtime.lock.json`）
+- **版本**：0.2.2（`versionCode` 202）｜ 上游基线 `dsh-v0.2.2-rc.1` ｜ Node **v26.13.0** ｜ 无 JIT（`compat` 默认，侧载无需受限权限）
+- **运行时来源**：ohpm 中央仓 `@fellow99/node-bridge`（ArkTS 组件库，NAPI bootstrap + dlopen + node::Start）+ `@fellow99/node-runtime@26.13.0`（`libnode.so`，SHA-256 锁定 by `runtime.lock.json`）
 - **适配原则**：上游**零补丁** —— `ohos` profile + 一个 bundle 层 + seam 插件 + 六个经审计垫片
 
 ### 与其他 Edition 的关系
 | | 本工程（HarmonyOS Edition） | `../dsh-desktop-hos`（Electron on HarmonyOS Edition） |
 |---|---|---|
 | 渲染 | 系统 ArkWeb（无捆绑） | Electron 37 内置 Chromium |
-| Node | 进程内 `libnode.so` v24.2.0 | Electron 运行时内（Node 22.17） |
+| Node | 进程内 `libnode.so` v26.13.0 | Electron 运行时内（Node 22.17） |
 | 运行时插件 | `@fellow99/node-bridge` + `@fellow99/node-runtime`（ohpm） | `../harmonypc-electron` |
 | 上游补丁 | **0** | 13 处源码补丁 |
 | 安装要求 | 无（默认 JIT-free） | JIT 受限权限（ACL） |

@@ -5,10 +5,10 @@
 > The **official DeepSeek Harness (dsh) Web UI, unmodified**, running on HarmonyOS 2in1 / tablet inside the system **ArkWeb** — with the dsh Host on a **real Node.js runtime embedded in the same process**. No Electron, no bundled Chromium, no ArkUI rewrite.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/release-0.2.1-4D6BFE" alt="Version">
-  <img src="https://img.shields.io/badge/dsh-dsh--v0.2.1--rc.5-7C5CFF" alt="dsh version">
+  <img src="https://img.shields.io/badge/release-0.2.2-4D6BFE" alt="Version">
+  <img src="https://img.shields.io/badge/dsh-dsh--v0.2.2--rc.1-7C5CFF" alt="dsh version">
   <img src="https://img.shields.io/badge/HarmonyOS-API%2024-0A59F7" alt="HarmonyOS API 24">
-  <img src="https://img.shields.io/badge/Node-v24.2.0-5FA04E" alt="Node 24.2.0">
+  <img src="https://img.shields.io/badge/Node-v26.13.0-5FA04E" alt="Node 24.2.0">
   <img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="MIT">
 </p>
 
@@ -27,12 +27,12 @@ HarmonyOS gets **two independent editions** with the same shell architecture, th
 | | **HarmonyOS Edition** (this repo) | **Electron on HarmonyOS Edition** ([`dsh-desktop-hos`](../dsh-desktop-hos)) |
 |---|---|---|
 | Renderer | The system **ArkWeb** — nothing bundled | Chromium, shipped inside Electron 37 |
-| Node.js | `libnode.so` started in the app's own process (v24.2.0) | Inside the Electron runtime (Node 22.17) |
+| Node.js | `libnode.so` started in the app's own process (v26.13.0) | Inside the Electron runtime (Node 22.17) |
 | Runtime plumbing | [`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge) + [`@fellow99/node-runtime`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime) (ohpm) | [`harmonypc-electron`](../harmonypc-electron) |
 | Upstream dsh patches | **0** — profile + bundle layer + audited shims | 13 source patches |
 | Install requirement | none (JIT-free default) | JIT restricted permission (ACL) |
 | Package size | ≈88 MB | Electron-sized (hundreds of MB) |
-| Maturity | 0.2.1 — device-verified on HarmonyOS 6.1.0.135 (API 24) | 0.2.1 — device-verified (0.2.0 baseline) |
+| Maturity | 0.2.2 — built (0.2.1 device-verified on HarmonyOS 6.1.0.135 / API 24) | 0.2.2 — built & signed (on-device re-verification pending; 0.2.0 baseline) |
 
 Neither replaces the other: the Electron edition buys maximum desktop fidelity at the cost of a bundled Chromium and JIT; this edition buys a small payload and a permission-free install at the cost of covering platform gaps in the shim layer.
 
@@ -54,11 +54,11 @@ The complete matrix — every capability, both editions side by side, with root 
 
 ## Status
 
-`0.2.1` (`versionCode` 201) — **runs on device**. Verified on HarmonyOS 6.1.0.135 (API 24, 2in1): installs with zero ACLs, the payload self-extracts and reports `ready`, all shims install, `node:sqlite`/FTS5 available, text and image conversations, workspace picker across the three roots, git clone (public and intranet), and the branded window (checked through the WebView debugger). Known gaps and their fix points are listed in the capability inventory above.
+`0.2.2` (`versionCode` 202) — **built** for dsh-v0.2.2-rc.1 on Node 26.13.0 (on-device verification pending; 0.2.1 device-verified on HarmonyOS 6.1.0.135 / API 24, 2in1): installs with zero ACLs, the payload self-extracts and reports `ready`, all shims install, `node:sqlite`/FTS5 available, text and image conversations, workspace picker across the three roots, git clone (public and intranet), and the branded window (checked through the WebView debugger). Known gaps and their fix points are listed in the capability inventory above.
 
 ## Build
 
-Prerequisites: DevEco **Command Line Tools** (SDK API 24) and the sibling submodule `../deepseek-harness`. The Node runtime is pulled from the OpenHarmony ohpm central repository: [`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge) (API + NAPI bootstrap) and [`@fellow99/node-runtime@24.2.0`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime) (the `libnode.so` engine, SHA-256-locked by the bundled `runtime.lock.json`).
+Prerequisites: DevEco **Command Line Tools** (SDK API 24) and the sibling submodule `../deepseek-harness`. The Node runtime is pulled from the OpenHarmony ohpm central repository: [`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge) (API + NAPI bootstrap) and [`@fellow99/node-runtime@26.13.0`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime) (the `libnode.so` engine, SHA-256-locked by the bundled `runtime.lock.json`).
 
 ```bash
 node scripts/assemble-payload.mjs --deploy --apply   # ① materialize the dsh runtime
@@ -88,11 +88,11 @@ Run `bash scripts/build-hap.sh --debug` to get `entry-default-signed.hap`, which
 
 | Document | What it answers |
 |---|---|
-| [Capability inventory 0.2.1](docs/鸿蒙环境能力清单-0.2.1.md) | What works, what does not, and how this compares to the Electron edition |
+| [Capability inventory 0.2.2](docs/鸿蒙环境能力清单-0.2.1.md) | What works, what does not, and how this compares to the Electron edition |
 | [Engineering plan](docs/000-工程规划.md) | Why this architecture, what was rejected, and the shim whitelist |
 | [On-device notes](docs/010-真机调试记录.md) | What broke on the device and how it was diagnosed |
 | [JIT and ACL](docs/ACL配置.md) · [JIT-less decision](docs/119-jitless-方案决策.md) | The two runtime forms and what each costs |
-| [Specifications](specs/README.md) | 14 spec modules (013, 101–108, 110, 119, 201, 204, 205) with plans and gates |
+| [Specifications](specs/README.md) | 14 spec modules (013, 101–108, 110, 119, 202, 204, 205) with plans and gates |
 
 ## Related
 

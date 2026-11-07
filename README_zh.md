@@ -5,10 +5,10 @@
 > **官方 DeepSeek Harness（dsh）Web UI，原样未改**，运行在鸿蒙 2in1 / 平板上的**系统 ArkWeb** 里 —— 而 dsh Host 跑在**同一进程内嵌的真实 Node.js 运行时**上。没有 Electron、不自带浏览器内核、不重写 ArkUI。
 
 <p align="center">
-  <img src="https://img.shields.io/badge/release-0.2.1-4D6BFE" alt="版本">
-  <img src="https://img.shields.io/badge/dsh-dsh--v0.2.1--rc.5-7C5CFF" alt="dsh 版本">
+  <img src="https://img.shields.io/badge/release-0.2.2-4D6BFE" alt="版本">
+  <img src="https://img.shields.io/badge/dsh-dsh--v0.2.2--rc.1-7C5CFF" alt="dsh 版本">
   <img src="https://img.shields.io/badge/HarmonyOS-API%2024-0A59F7" alt="HarmonyOS API 24">
-  <img src="https://img.shields.io/badge/Node-v24.2.0-5FA04E" alt="Node 24.2.0">
+  <img src="https://img.shields.io/badge/Node-v26.13.0-5FA04E" alt="Node 24.2.0">
   <img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="MIT">
 </p>
 
@@ -27,12 +27,12 @@
 | | **鸿蒙版**（本仓库） | **Electron on HarmonyOS 版**（[`dsh-desktop-hos`](../dsh-desktop-hos)） |
 |---|---|---|
 | 渲染 | 系统 **ArkWeb** —— 不随包带内核 | Electron 37 内置 Chromium |
-| Node.js | 应用进程内 `libnode.so`（v24.2.0） | Electron 运行时内置（Node 22.17） |
+| Node.js | 应用进程内 `libnode.so`（v26.13.0） | Electron 运行时内置（Node 22.17） |
 | 运行时管线 | [`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge) + [`@fellow99/node-runtime`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime)（ohpm 中心仓包） | [`harmonypc-electron`](../harmonypc-electron) |
 | 上游 dsh 补丁 | **0** —— profile + bundle 层 + 已审计垫片 | 13 个源码补丁 |
 | 安装要求 | 无（默认无 JIT） | 需 JIT 受限权限（ACL） |
 | 包体 | 约 88 MB | Electron 体量（数百 MB） |
-| 成熟度 | 0.2.1 —— 已在 HarmonyOS 6.1.0.135（API 24）真机验证 | 0.2.1 —— 已真机验证（0.2.0 基线） |
+| 成熟度 | 0.2.2 —— 已构建（0.2.1 已在 HarmonyOS 6.1.0.135 / API 24 真机验证） | 0.2.2 —— 已构建并签名（真机复验待做；0.2.0 基线） |
 
 两者不互相替代：Electron 版用自带 Chromium 与 JIT 换来最接近桌面的保真度；本版用较小的包体与免权限安装换来"平台差异由垫片层兜住"。
 
@@ -54,11 +54,11 @@
 
 ## 状态
 
-`0.2.1`（`versionCode` 201）—— **可在真机运行**。已在 HarmonyOS 6.1.0.135（API 24，2in1）验证：零 ACL 装机、载荷自解包并 `ready`、垫片全部安装、`node:sqlite`/FTS5 可用、文本与图片对话、三根目录工作区选择、git 克隆（公开与内网）、品牌位（经 WebView 调试器核对）。已知缺口与修复点见上面的能力清单。
+`0.2.2`（`versionCode` 202）—— **已构建**（dsh-v0.2.2-rc.1 / Node 26.13.0；真机验证待做，0.2.1 已在 HarmonyOS 6.1.0.135 / API 24、2in1 真机验证）：零 ACL 装机、载荷自解包并 `ready`、垫片全部安装、`node:sqlite`/FTS5 可用、文本与图片对话、三根目录工作区选择、git 克隆（公开与内网）、品牌位（经 WebView 调试器核对）。已知缺口与修复点见上面的能力清单。
 
 ## 构建
 
-前置：DevEco **Command Line Tools**（SDK API 24）与同级子模块 `../deepseek-harness`。Node 运行时来自 OpenHarmony 三方库中心仓：[`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge)（API + NAPI 引导件）与 [`@fellow99/node-runtime@24.2.0`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime)（`libnode.so` 引擎，SHA-256 由随包 `runtime.lock.json` 锁定），`ohpm install` 自动拉取。
+前置：DevEco **Command Line Tools**（SDK API 24）与同级子模块 `../deepseek-harness`。Node 运行时来自 OpenHarmony 三方库中心仓：[`@fellow99/node-bridge`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-bridge)（API + NAPI 引导件）与 [`@fellow99/node-runtime@26.13.0`](https://ohpm.openharmony.cn/#/cn/detail/@fellow99%2Fnode-runtime)（`libnode.so` 引擎，SHA-256 由随包 `runtime.lock.json` 锁定），`ohpm install` 自动拉取。
 
 ```bash
 node scripts/assemble-payload.mjs --deploy --apply   # ① 物化 dsh 运行树
@@ -88,11 +88,11 @@ Error Message: Invalid CEN header (invalid zip64 extra data field size)
 
 | 文档 | 回答什么 |
 |---|---|
-| [能力清单 0.2.1](docs/鸿蒙环境能力清单-0.2.1.md) | 能做什么、不能做什么，与 Electron 版如何对标 |
+| [能力清单 0.2.2](docs/鸿蒙环境能力清单-0.2.1.md) | 能做什么、不能做什么，与 Electron 版如何对标 |
 | [工程规划](docs/000-工程规划.md) | 为什么是这个架构、否决了什么、垫片白名单 |
 | [真机调试记录](docs/010-真机调试记录.md) | 真机上踩了什么坑、怎么定位的 |
 | [JIT 与 ACL](docs/ACL配置.md) · [无 JIT 决策](docs/119-jitless-方案决策.md) | 两种运行时形态各自的代价 |
-| [规格文档](specs/README.md) | 14 个规格模块（013、101–108、110、119、201、204、205）与门禁 |
+| [规格文档](specs/README.md) | 14 个规格模块（013、101–108、110、119、202、204、205）与门禁 |
 
 ## 相关工程
 
