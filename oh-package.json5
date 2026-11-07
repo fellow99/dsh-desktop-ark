@@ -4,8 +4,8 @@
   "dependencies": {
     // 常规 ohpm 中心仓依赖：API 与 NAPI 引导件在 @fellow99/node-bridge，
     // 引擎 libnode.so 随 @fellow99/node-runtime 分发（版本号 = Node 版本，严格锁定便于审计）。
-    "@fellow99/node-bridge": "^0.1.0",
-    "@fellow99/node-runtime": "24.2.0"
+    "@fellow99/node-bridge": "^0.2.0",
+    "@fellow99/node-runtime": "26.13.0"
   },
   "devDependencies": {}
 }

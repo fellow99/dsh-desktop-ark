@@ -371,7 +371,7 @@ function collectGitRuntime(stage) {
 const PNPM_VERSION = '10.34.6';
 
 // ── 201-dsh-market：内置插件市场 ────────────────────────────────────────────────────
-const DSH_MARKET_VERSION = '1.73.7';
+const DSH_MARKET_VERSION = '1.73.14';
 const MARKET_ROOT = resolve(ROOT, '../dsh-market');
 
 /** 删掉 pnpm 引擎里非目标平台的产物（copy 导入法不会加载它们），只控体积。 */
@@ -816,7 +816,7 @@ function assertNoLinks(stage) {
 /** 待装配的输入是否成立；不成立时给出下一步命令。 */
 function assertDeployInputs() {
   if (!existsSync(resolve(DSH_ROOT, 'package.json'))) {
-    fail(2, `上游未找到：${DSH_ROOT}`, 'git clone --branch dsh-v0.2.1-rc.5 https://github.com/deepseek-ai/deepseek-harness.git ../deepseek-harness');
+    fail(2, `上游未找到：${DSH_ROOT}`, 'git clone --branch dsh-v0.2.2-rc.1 https://github.com/deepseek-ai/deepseek-harness.git ../deepseek-harness');
   }
   const cliBin = resolve(DSH_ROOT, 'apps/cli/lib/bin.js');
   const sampleLib = resolve(DSH_ROOT, 'packages/core/agent/lib/index.js');

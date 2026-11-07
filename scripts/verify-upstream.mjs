@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const UPSTREAM = resolve(ROOT, '..', 'deepseek-harness');
-const EXPECTED_TAG = 'dsh-v0.2.1-rc.5';
+const EXPECTED_TAG = 'dsh-v0.2.2-rc.1';
 
 const problems = [];
 const notes = [];

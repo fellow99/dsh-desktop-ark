@@ -10,7 +10,7 @@
 
 ### 1.1 目的
 
-把 `dsh-market`（npm 包 `dshmarket`，固定版本 **`1.73.7`**）内置进本工程的 dsh 环境：设置页出现「插件市场」，用户可浏览目录并**安装 / 卸载**插件。安装通道由 `110-pnpm-integration` 提供（进程内 pnpm），本模块负责市场产物的物化、profile 声明与运行期接线。
+把 `dsh-market`（npm 包 `dshmarket`，固定版本 **`1.73.14`**）内置进本工程的 dsh 环境：设置页出现「插件市场」，用户可浏览目录并**安装 / 卸载**插件。安装通道由 `110-pnpm-integration` 提供（进程内 pnpm），本模块负责市场产物的物化、profile 声明与运行期接线。
 
 ### 1.2 范围
 
@@ -100,7 +100,7 @@
 ## 7. 假设与约束
 
 - `dsh-market` 为同级源码（`../dsh-market`），版本以 `DSH_MARKET_VERSION` 固定并断言。
-- 市场的 `desktopProfiles` 分支存在于 1.73.7（`src/index.ts:335-374`）。
+- 市场的 `desktopProfiles` 分支存在于 1.73.14（`src/index.ts:335-374`）。
 - bundle 解析第一锚点是 `installAnchor`（`profile.ts:714-725`），因此产物放 `<runRoot>/node_modules` 即可被加载；client 扫描按 row 的模块位置定位 `package.json`。
 - 设备网络可达 `registry.npmjs.org` 与 `awesome-dsh-plugin.com` 是市场可用的前提；不可达时如实记录。
 
@@ -108,6 +108,6 @@
 
 ## 8. 依赖
 
-**上游**：`dsh-market` 1.73.7（只读）；`deepseek-harness` 的 bundle/profile/client 机制（只读）。
+**上游**：`dsh-market` 1.73.14（只读）；`deepseek-harness` 的 bundle/profile/client 机制（只读）。
 
 **工程内**：`110-pnpm-integration`（安装通道）、`102-payload-pipeline`（物化）、`105-upstream-adapter-bundle`（`@dsh-ohos/bundle` 插入行）。

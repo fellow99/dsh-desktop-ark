@@ -2,7 +2,7 @@
 
 **工程：** `dsh-desktop-ark` · 版本 0.2.1（versionCode 201）
 **上游基线：** `deepseek-harness` `dsh-v0.2.1-rc.5` ｜ 运行时 Node **v24.2.0**（`ohos-node-bridge` HAR，进程内 `libnode.so`）
-**市场基线：** `dsh-market`（`../dsh-market`）**1.73.7** ｜ **pnpm 引擎基线：** `pnpm@10.34.6`
+**市场基线：** `dsh-market`（`../dsh-market`）**1.73.14** ｜ **pnpm 引擎基线：** `pnpm@10.34.6`
 **同源实现：** `../dsh-desktop-hos`（Electron 版，已真机验收）
 - `../dsh-desktop-hos/docs/110-pnpm+dsh-market.md`（方案与决策过程）
 - `../dsh-desktop-hos/docs/pnpm对接问题排查.md`（真机故障矩阵）
@@ -63,7 +63,7 @@
 
 **B. dshmarket → `<stage>/node_modules/dshmarket/`**
 
-- 常量 `DSH_MARKET_VERSION = '1.73.7'`。
+- 常量 `DSH_MARKET_VERSION = '1.73.14'`。
 - 源：`../dsh-market`。缺 `package.json` / `lib/index.js` / `client/client.js` ⇒ 硬失败（退出码 1）。
 - 复制白名单：`package.json`、`cordis.patch.yml`、`lib/`、`client/`（排除 `src/`、`tests/`、`scripts/`、`site/`、`locale/`、`assets/`、`tsconfig*`、`node_modules/`）。
 - 运行时依赖闭包：从 `dsh-market/node_modules` 递归复制 `dependencies` 与传递依赖到 `dshmarket/node_modules`；**`@deepseek-ai/*` 不复制**（从载荷宿主闭包解析）。
@@ -313,7 +313,7 @@ bootstrap.js（主线程：异常兜底 → jitless 兼容层 → 垫片 → 解
 | R1 | 设备到 `registry.npmjs.org` / `awesome-dsh-plugin.com` 的可达性 | 目录或安装失败 | 先探测；不可达则如实记录并改用可达镜像验证安装通道 |
 | R2 | `--jitless` 下 pnpm 解包是纯 JS，安装可能分钟级 | 超时 / 体验 | 市场 15 min 预算；用例给足时间并记录耗时 |
 | R3 | pnpm 引擎 ≈ 21 MiB + 市场 ≈ 2 MiB | HAP 体积 | 构建期打印增量；prune 非目标平台二进制 |
-| R4 | 市场版本浮动（当前 1.73.7；hos 记 1.66.21 / 1.66.7） | 契约漂移 | 集中常量 + 构建期断言；升级即红 |
+| R4 | 市场版本浮动（当前 1.73.14；hos 记 1.66.21 / 1.66.7） | 契约漂移 | 集中常量 + 构建期断言；升级即红 |
 | R5 | `ignoreScripts: true` 使市场的「放行构建脚本并重试」无效 | 用户被引导到死路 | 文档与 UI 文案披露；`git:` 源同样不可装 |
 | R6 | 载荷分代 ⇒ 换包后已装插件消失（L1） | 升级体验 | 登记为已知限制；后续任务：profile 迁 `$DSH_HOME` 或代际接续 |
 | R7 | 安装通道绕过 `fs-sandbox`：pnpm 直接写 profile 目录 | 安全面扩大 | 安装目录由宿主固定为 profile，**不采信**市场传入的 `invokingDir`；`ignoreScripts` 关闭脚本执行 |
